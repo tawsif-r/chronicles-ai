@@ -1,0 +1,64 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
+import { apiClient } from '../api/client';
+import type { AuthTokens, LoginDto, RegisterDto } from '@chronicles/shared';
+
+interface AuthCtx {
+  token: string | null;
+  login: (dto: LoginDto) => Promise<void>;
+  register: (dto: RegisterDto) => Promise<void>;
+  logout: () => void;
+}
+
+const Ctx = createContext<AuthCtx | null>(null);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [token, setToken] = useState<string | null>(
+    () => localStorage.getItem('access_token'),
+  );
+
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem('access_token', token);
+      apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      localStorage.removeItem('access_token');
+      delete apiClient.defaults.headers.common['Authorization'];
+    }
+  }, [token]);
+
+  const login = useCallback(async (dto: LoginDto) => {
+    const { data } = await apiClient.post<AuthTokens>('/auth/login', dto);
+    localStorage.setItem('refresh_token', data.refreshToken);
+    setToken(data.accessToken);
+  }, []);
+
+  const register = useCallback(async (dto: RegisterDto) => {
+    const { data } = await apiClient.post<AuthTokens>('/auth/register', dto);
+    localStorage.setItem('refresh_token', data.refreshToken);
+    setToken(data.accessToken);
+  }, []);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    setToken(null);
+  }, []);
+
+  return (
+    <Ctx.Provider value={{ token, login, register, logout }}>
+      {children}
+    </Ctx.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
+  return ctx;
+}

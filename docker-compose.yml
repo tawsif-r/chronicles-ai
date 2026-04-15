@@ -1,0 +1,62 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3000:3000'
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
+      - ./shared:/shared
+      - /app/node_modules
+      - ./workspaces:/workspaces
+    environment:
+      DATABASE_URL: postgres://chronicles:secret@postgres:5432/chronicles
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: changeme-jwt-secret-32chars!!!!
+      JWT_REFRESH_SECRET: changeme-refresh-secret-32chars!
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      API_KEY_ENCRYPTION_SECRET: changeme-encryption-key-32chars!
+      OPENCLAW_PORT_RANGE_START: '18800'
+      OPENCLAW_PORT_RANGE_END: '19800'
+      OPENCLAW_BINARY: openclaw
+      WORKSPACE_BASE_PATH: /workspaces
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./frontend:/app
+      - ./shared:/shared
+      - /app/node_modules
+    environment:
+      VITE_API_URL: http://localhost:3000
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: chronicles
+      POSTGRES_USER: chronicles
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:

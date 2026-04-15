@@ -1,0 +1,108 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+} from '@nestjs/common';
+import { Request } from 'express';
+import { AgentsService } from './agents.service';
+import { WorkspacesService } from '../workspaces/workspaces.service';
+import { RuntimeService } from '../runtime/runtime.service';
+import { CreateAgentDto } from './dto/create-agent.dto';
+import { UpdateAgentDto } from './dto/update-agent.dto';
+import type { RequestUser } from '../auth/jwt.strategy';
+
+@Controller('agents')
+export class AgentsController {
+  constructor(
+    private readonly agentsService: AgentsService,
+    private readonly workspacesService: WorkspacesService,
+    private readonly runtimeService: RuntimeService,
+  ) {}
+
+  @Get()
+  findAll(@Req() req: Request) {
+    const { workspaceId } = req.user as RequestUser;
+    return this.agentsService.findAll(workspaceId);
+  }
+
+  @Post()
+  async create(@Body() dto: CreateAgentDto, @Req() req: Request) {
+    const { workspaceId } = req.user as RequestUser;
+    const workspace = await this.workspacesService.findById(workspaceId);
+    return this.agentsService.create(dto, workspace!);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string, @Req() req: Request) {
+    const { workspaceId } = req.user as RequestUser;
+    return this.agentsService.findOne(id, workspaceId);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateAgentDto,
+    @Req() req: Request,
+  ) {
+    const { workspaceId } = req.user as RequestUser;
+    return this.agentsService.update(id, workspaceId, dto);
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string, @Req() req: Request) {
+    const { workspaceId } = req.user as RequestUser;
+    await this.runtimeService.stop(id, workspaceId);
+    await this.agentsService.remove(id, workspaceId);
+  }
+
+  @Post(':id/start')
+  start(@Param('id') id: string, @Req() req: Request) {
+    const { workspaceId } = req.user as RequestUser;
+    return this.runtimeService.start(id, workspaceId);
+  }
+
+  @Post(':id/stop')
+  stop(@Param('id') id: string, @Req() req: Request) {
+    const { workspaceId } = req.user as RequestUser;
+    return this.runtimeService.stop(id, workspaceId);
+  }
+
+  @Post(':id/restart')
+  restart(@Param('id') id: string, @Req() req: Request) {
+    const { workspaceId } = req.user as RequestUser;
+    return this.runtimeService.restart(id, workspaceId);
+  }
+
+  @Get(':id/status')
+  async status(@Param('id') id: string, @Req() req: Request) {
+    const { workspaceId } = req.user as RequestUser;
+    const agent = await this.agentsService.findOne(id, workspaceId);
+    return { status: agent.status, gatewayPort: agent.gatewayPort };
+  }
+
+  @Get(':id/memory')
+  async getMemory(@Param('id') id: string, @Req() req: Request) {
+    const { workspaceId } = req.user as RequestUser;
+    const agent = await this.agentsService.findOne(id, workspaceId);
+    const workspace = await this.workspacesService.findById(workspaceId);
+    const content = await this.agentsService.getMemory(agent, workspace!);
+    return { content };
+  }
+
+  @Patch(':id/memory')
+  async setMemory(
+    @Param('id') id: string,
+    @Body('content') content: string,
+    @Req() req: Request,
+  ) {
+    const { workspaceId } = req.user as RequestUser;
+    const agent = await this.agentsService.findOne(id, workspaceId);
+    const workspace = await this.workspacesService.findById(workspaceId);
+    await this.agentsService.setMemory(agent, workspace!, content);
+  }
+}
