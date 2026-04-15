@@ -27,7 +27,9 @@
 | Frontend API client + hooks | `frontend/src/api/`, `hooks/` | Done |
 | All pages (Login→Chat→Logs→Memory) | `frontend/src/pages/` | Done — unstyled stubs |
 
-**Next:** resolve open question #2 (OpenClaw gateway contract), then run `pnpm install` + `docker compose up`.
+**Current state (April 2026):** App boots and is fully functional up to the OpenClaw boundary. Register, login, create agents, and manage API keys all work. Starting an agent will succeed if `openclaw` is in PATH; chat will work once open question #2 is resolved.
+
+**Next:** Verify OpenClaw gateway contract (open question #2), then wire up chat end-to-end.
 
 ---
 
@@ -60,6 +62,8 @@ API_KEY_ENCRYPTION_SECRET=<run: openssl rand -hex 16>
 ```
 
 Everything else (DATABASE_URL, REDIS_URL, ports) can stay as-is for local dev.
+
+> **Note:** `WORKSPACE_BASE_PATH` defaults to `/tmp/chronicles-workspaces` in `.env`. This is fine for local dev — agent config files are written there at start time. Change it to a persistent path before any production use.
 
 ### 3. Start PostgreSQL + Redis
 

@@ -10,12 +10,15 @@
   },
   "dependencies": {
     "@chronicles/shared": "workspace:*",
+    "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-query": "^5.56.0",
     "axios": "^1.7.0",
+    "lucide-react": "^1.8.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.27.0",
-    "socket.io-client": "^4.8.0"
+    "socket.io-client": "^4.8.0",
+    "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",

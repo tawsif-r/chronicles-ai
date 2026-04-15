@@ -109,7 +109,37 @@
 
 ---
 
-## ADR-010: Circular Dependency — AgentsModule ↔ RuntimeModule
+## ADR-010: TypeScript `strictPropertyInitialization: false` for Entities
+
+**Decision:** `strictPropertyInitialization` is disabled in `backend/tsconfig.json`.
+
+**Rationale:** TypeORM entities declare columns as class properties without constructors. With `strict: true` (inherited from `tsconfig.base.json`), TypeScript raises TS2564 on every entity property. The standard TypeORM pattern relies on decorators to initialize fields, not constructors.
+
+**Implication:** Entity properties may technically be `undefined` at runtime before TypeORM hydrates them. Trust TypeORM — never instantiate entity classes with `new` and access properties directly without loading from the DB first.
+
+---
+
+## ADR-011: `@chronicles/shared` — pnpm workspace symlink, no tsconfig `paths`
+
+**Decision:** The backend resolves `@chronicles/shared` via pnpm's workspace symlink in `node_modules`, not via a `tsconfig.json` `paths` alias.
+
+**Rationale:** Using `paths` to point to `../shared/src/index.ts` caused TypeScript to include the shared source in the backend compilation tree, nesting output under `dist/backend/src/` instead of `dist/`. pnpm workspace (`"@chronicles/shared": "workspace:*"` in `backend/package.json`) creates a symlink at `backend/node_modules/@chronicles/shared` → `../../shared`, which TypeScript resolves correctly through standard `node_modules` lookup. The same applies to the frontend via Vite's `resolve.alias` in `vite.config.ts`.
+
+**Implication:** Do not add a `paths` entry for `@chronicles/shared` back to `backend/tsconfig.json`. If shared types don't resolve, check the pnpm symlink first: `ls backend/node_modules/@chronicles/shared`.
+
+---
+
+## ADR-012: Native Build Approvals — `pnpm.onlyBuiltDependencies`
+
+**Decision:** Root `package.json` declares `pnpm.onlyBuiltDependencies` to allow native postinstall scripts for `@nestjs/core`, `bcrypt`, `esbuild`, and `msgpackr-extract`.
+
+**Rationale:** pnpm v10 blocks postinstall scripts by default for security. These four packages require native compilation (`bcrypt` especially — it has a C++ addon). Approved in `package.json` so `pnpm install` runs unattended without an interactive prompt.
+
+**Implementation:** `"pnpm": { "onlyBuiltDependencies": [...] }` in the root `package.json`.
+
+---
+
+## ADR-013: Circular Dependency — AgentsModule ↔ RuntimeModule
 
 **Decision:** `RuntimeModule` imports `AgentsModule` via `forwardRef()` to break the circular dependency (Agents needs Runtime for start/stop controller methods; Runtime needs Agents for ownership checks and status updates).
 
