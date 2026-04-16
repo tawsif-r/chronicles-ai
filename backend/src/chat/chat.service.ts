@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatMessage } from './chat-message.entity';
@@ -8,6 +8,8 @@ import { LlmService } from '../llm/llm.service';
 
 @Injectable()
 export class ChatService {
+  private readonly logger = new Logger(ChatService.name);
+
   constructor(
     @InjectRepository(ChatMessage)
     private readonly msgRepo: Repository<ChatMessage>,
@@ -37,6 +39,9 @@ export class ChatService {
 
     // Get decrypted API keys for this workspace
     const apiKeys = await this.apiKeysService.buildEnvForAgent(workspaceId);
+    this.logger.log(
+      `workspace=${workspaceId} provider=${agent.modelProvider} model=${agent.modelName} keys=[${Object.keys(apiKeys).join(',')}]`,
+    );
 
     // Call LLM
     const reply = await this.llmService.chat({

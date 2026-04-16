@@ -24,29 +24,41 @@ export class LlmService {
   async chat(params: LlmChatParams): Promise<string> {
     const { provider, model, systemPrompt, messages, apiKeys } = params;
 
-    this.logger.log(`LLM call: provider=${provider} model=${model} msgs=${messages.length}`);
+    // Log key presence for debugging (never log actual key values)
+    const presentKeys = Object.keys(apiKeys);
+    this.logger.log(
+      `LLM call: provider=${provider} model=${model} msgs=${messages.length} keys=[${presentKeys.join(',')}]`,
+    );
 
     try {
       if (provider === 'claude') {
-        return await this.callAnthropic(model, systemPrompt, messages, apiKeys['ANTHROPIC_API_KEY']);
+        const key = apiKeys['ANTHROPIC_API_KEY'];
+        if (!key) throw new Error('Anthropic API key not set — add it in Settings');
+        return await this.callAnthropic(model, systemPrompt, messages, key);
       }
+
       if (provider === 'openai') {
-        return await this.callOpenAICompat(model, systemPrompt, messages, {
-          apiKey: apiKeys['OPENAI_API_KEY'],
-        });
+        const key = apiKeys['OPENAI_API_KEY'];
+        if (!key) throw new Error('OpenAI API key not set — add it in Settings');
+        return await this.callOpenAICompat(model, systemPrompt, messages, { apiKey: key });
       }
+
       if (provider === 'openrouter') {
+        const key = apiKeys['OPENROUTER_API_KEY'];
+        if (!key) throw new Error('OpenRouter API key not set — add it in Settings');
         return await this.callOpenAICompat(model, systemPrompt, messages, {
-          apiKey: apiKeys['OPENROUTER_API_KEY'],
+          apiKey: key,
           baseURL: 'https://openrouter.ai/api/v1',
         });
       }
+
       if (provider === 'ollama') {
         return await this.callOpenAICompat(model, systemPrompt, messages, {
           apiKey: 'ollama',
           baseURL: 'http://localhost:11434/v1',
         });
       }
+
       throw new Error(`Unsupported provider: ${provider}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -59,9 +71,8 @@ export class LlmService {
     model: string,
     systemPrompt: string,
     messages: LlmMessage[],
-    apiKey: string | undefined,
+    apiKey: string,
   ): Promise<string> {
-    if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set — add it in Settings');
     const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
       model,
@@ -77,11 +88,8 @@ export class LlmService {
     model: string,
     systemPrompt: string,
     messages: LlmMessage[],
-    opts: { apiKey?: string; baseURL?: string },
+    opts: { apiKey: string; baseURL?: string },
   ): Promise<string> {
-    if (!opts.apiKey || opts.apiKey === 'ollama' === false && !opts.apiKey) {
-      throw new Error(`API key not set for this provider — add it in Settings`);
-    }
     const client = new OpenAI({ apiKey: opts.apiKey, baseURL: opts.baseURL });
     const response = await client.chat.completions.create({
       model,

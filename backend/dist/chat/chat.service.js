@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var ChatService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ChatService = void 0;
 const common_1 = require("@nestjs/common");
@@ -20,12 +21,13 @@ const chat_message_entity_1 = require("./chat-message.entity");
 const agents_service_1 = require("../agents/agents.service");
 const api_keys_service_1 = require("../api-keys/api-keys.service");
 const llm_service_1 = require("../llm/llm.service");
-let ChatService = class ChatService {
+let ChatService = ChatService_1 = class ChatService {
     constructor(msgRepo, agentsService, apiKeysService, llmService) {
         this.msgRepo = msgRepo;
         this.agentsService = agentsService;
         this.apiKeysService = apiKeysService;
         this.llmService = llmService;
+        this.logger = new common_1.Logger(ChatService_1.name);
     }
     async sendMessage(agentId, workspaceId, message) {
         const agent = await this.agentsService.findOne(agentId, workspaceId);
@@ -41,6 +43,7 @@ let ChatService = class ChatService {
         ];
         // Get decrypted API keys for this workspace
         const apiKeys = await this.apiKeysService.buildEnvForAgent(workspaceId);
+        this.logger.log(`workspace=${workspaceId} provider=${agent.modelProvider} model=${agent.modelName} keys=[${Object.keys(apiKeys).join(',')}]`);
         // Call LLM
         const reply = await this.llmService.chat({
             provider: agent.modelProvider,
@@ -67,7 +70,7 @@ let ChatService = class ChatService {
     }
 };
 exports.ChatService = ChatService;
-exports.ChatService = ChatService = __decorate([
+exports.ChatService = ChatService = ChatService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(chat_message_entity_1.ChatMessage)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
