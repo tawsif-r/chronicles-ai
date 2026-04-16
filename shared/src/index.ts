@@ -1,7 +1,7 @@
 // ─── Domain types ────────────────────────────────────────────────────────────
 
 export type AgentStatus   = 'stopped' | 'starting' | 'running' | 'error';
-export type ModelProvider = 'claude' | 'openai' | 'ollama';
+export type ModelProvider = 'claude' | 'openai' | 'ollama' | 'openrouter';
 export type ChannelType   = 'telegram' | 'slack' | 'discord' | 'whatsapp';
 export type MessageRole   = 'user' | 'assistant';
 

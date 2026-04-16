@@ -13,12 +13,14 @@ const chat_message_entity_1 = require("./chat-message.entity");
 const chat_service_1 = require("./chat.service");
 const chat_controller_1 = require("./chat.controller");
 const agents_module_1 = require("../agents/agents.module");
+const api_keys_module_1 = require("../api-keys/api-keys.module");
+const llm_module_1 = require("../llm/llm.module");
 let ChatModule = class ChatModule {
 };
 exports.ChatModule = ChatModule;
 exports.ChatModule = ChatModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([chat_message_entity_1.ChatMessage]), agents_module_1.AgentsModule],
+        imports: [typeorm_1.TypeOrmModule.forFeature([chat_message_entity_1.ChatMessage]), agents_module_1.AgentsModule, api_keys_module_1.ApiKeysModule, llm_module_1.LlmModule],
         controllers: [chat_controller_1.ChatController],
         providers: [chat_service_1.ChatService],
     })

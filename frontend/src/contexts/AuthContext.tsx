@@ -10,6 +10,7 @@ import type { AuthTokens, LoginDto, RegisterDto } from '@chronicles/shared';
 
 interface AuthCtx {
   token: string | null;
+  user: { id: string; email: string } | null;
   login: (dto: LoginDto) => Promise<void>;
   register: (dto: RegisterDto) => Promise<void>;
   logout: () => void;
@@ -21,14 +22,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(
     () => localStorage.getItem('access_token'),
   );
+  const [user, setUser] = useState<{ id: string; email: string } | null>(null);
 
   useEffect(() => {
     if (token) {
       localStorage.setItem('access_token', token);
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // Fetch user profile
+      apiClient.get<{ id: string; email: string }>('/auth/me')
+        .then((r) => setUser(r.data))
+        .catch(() => setUser(null));
     } else {
       localStorage.removeItem('access_token');
       delete apiClient.defaults.headers.common['Authorization'];
+      setUser(null);
     }
   }, [token]);
 
@@ -51,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ token, login, register, logout }}>
+    <Ctx.Provider value={{ token, user, login, register, logout }}>
       {children}
     </Ctx.Provider>
   );

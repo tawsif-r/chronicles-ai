@@ -7,6 +7,7 @@ const providerInfo: Record<string, { label: string; hint: string }> = {
   anthropic: { label: 'Anthropic', hint: 'sk-ant-...' },
   openai:    { label: 'OpenAI',    hint: 'sk-...'     },
   ollama:    { label: 'Ollama',    hint: 'http://localhost:11434' },
+  openrouter: { label: 'OpenRouter', hint: 'sk-or-v1-...' },
 };
 
 export default function Settings() {

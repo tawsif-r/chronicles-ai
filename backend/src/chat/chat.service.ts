@@ -1,12 +1,10 @@
-import {
-  BadRequestException,
-  Injectable,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import axios from 'axios';
 import { ChatMessage } from './chat-message.entity';
 import { AgentsService } from '../agents/agents.service';
+import { ApiKeysService } from '../api-keys/api-keys.service';
+import { LlmService } from '../llm/llm.service';
 
 @Injectable()
 export class ChatService {
@@ -14,6 +12,8 @@ export class ChatService {
     @InjectRepository(ChatMessage)
     private readonly msgRepo: Repository<ChatMessage>,
     private readonly agentsService: AgentsService,
+    private readonly apiKeysService: ApiKeysService,
+    private readonly llmService: LlmService,
   ) {}
 
   async sendMessage(
@@ -23,22 +23,37 @@ export class ChatService {
   ): Promise<string> {
     const agent = await this.agentsService.findOne(agentId, workspaceId);
 
-    if (agent.status !== 'running' || !agent.gatewayPort) {
-      throw new BadRequestException('Agent is not running');
-    }
+    // Load recent history from DB (last 50 turns = 100 messages)
+    const history = await this.msgRepo.find({
+      where: { agent: { id: agentId } },
+      order: { createdAt: 'ASC' },
+      take: 100,
+    });
 
-    // TODO: Confirm exact OpenClaw HTTP gateway endpoint + body shape (Open Question #2)
-    const { data } = await axios.post<{ reply: string }>(
-      `http://127.0.0.1:${agent.gatewayPort}/message`,
-      { content: message },
-    );
+    const messages = [
+      ...history.map((m) => ({ role: m.role, content: m.content })),
+      { role: 'user' as const, content: message },
+    ];
 
+    // Get decrypted API keys for this workspace
+    const apiKeys = await this.apiKeysService.buildEnvForAgent(workspaceId);
+
+    // Call LLM
+    const reply = await this.llmService.chat({
+      provider: agent.modelProvider,
+      model: agent.modelName,
+      systemPrompt: agent.soulMd,
+      messages,
+      apiKeys,
+    });
+
+    // Persist both turns
     await this.msgRepo.save([
       this.msgRepo.create({ agent, role: 'user', content: message }),
-      this.msgRepo.create({ agent, role: 'assistant', content: data.reply }),
+      this.msgRepo.create({ agent, role: 'assistant', content: reply }),
     ]);
 
-    return data.reply;
+    return reply;
   }
 
   async getHistory(

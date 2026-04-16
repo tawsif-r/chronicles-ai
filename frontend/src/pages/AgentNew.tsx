@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ChevronLeft, Sparkles } from 'lucide-react';
+import { ChevronLeft, Sparkles, KeyRound } from 'lucide-react';
 import { useCreateAgent } from '../hooks/useAgents';
+import { apiKeysApi } from '../api/apiKeys';
 import type { ModelProvider } from '@chronicles/shared';
 
 const models: { provider: ModelProvider; name: string; label: string }[] = [
@@ -10,9 +11,17 @@ const models: { provider: ModelProvider; name: string; label: string }[] = [
   { provider: 'openai', name: 'gpt-4o',            label: 'GPT-4o'            },
   { provider: 'openai', name: 'gpt-4o-mini',       label: 'GPT-4o Mini'       },
   { provider: 'ollama', name: 'llama3.2',           label: 'Llama 3.2 (local)' },
+  { provider: 'openrouter', name: 'openrouter/auto', label: 'OpenRouter Auto' },
 ];
 
 const DEFAULT_SOUL = `You are a helpful AI assistant. You are thoughtful, accurate, and clear in your responses.`;
+
+// Map model provider to API key provider string and placeholder hint
+const apiKeyProviderMap: Partial<Record<ModelProvider, { provider: string; hint: string }>> = {
+  claude:      { provider: 'anthropic',   hint: 'sk-ant-...' },
+  openai:      { provider: 'openai',      hint: 'sk-...' },
+  openrouter:  { provider: 'openrouter',  hint: 'sk-or-v1-...' },
+};
 
 export default function AgentNew() {
   const navigate = useNavigate();
@@ -21,9 +30,22 @@ export default function AgentNew() {
   const [selectedModel, setSelectedModel] = useState(models[0]);
   const [customModel, setCustomModel] = useState('');
   const [soulMd, setSoulMd] = useState(DEFAULT_SOUL);
+  const [apiKey, setApiKey] = useState('');
+  const [keyError, setKeyError] = useState('');
+
+  const keyMeta = apiKeyProviderMap[selectedModel.provider];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setKeyError('');
+    if (apiKey.trim() && keyMeta) {
+      try {
+        await apiKeysApi.store(keyMeta.provider, apiKey.trim());
+      } catch {
+        setKeyError('Failed to save API key. Check format and try again.');
+        return;
+      }
+    }
     const modelName = customModel.trim() || selectedModel.name;
     const agent = await createAgent.mutateAsync({ name: name.trim(), modelProvider: selectedModel.provider, modelName, soulMd });
     navigate(`/agents/${agent.id}`);
@@ -70,6 +92,23 @@ export default function AgentNew() {
           <textarea value={soulMd} onChange={(e) => setSoulMd(e.target.value)} rows={8}
             className="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/[0.08] rounded-lg text-sm text-gray-800 dark:text-zinc-300 font-mono focus:outline-none focus:border-violet-400 dark:focus:border-violet-500/50 focus:ring-1 focus:ring-violet-400/20 dark:focus:ring-violet-500/20 transition-all resize-none leading-relaxed" />
         </div>
+
+        {keyMeta && (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <KeyRound size={12} />
+              API Key <span className="ml-1 normal-case font-normal text-gray-400 dark:text-zinc-600">(optional — saves to workspace settings)</span>
+            </label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={keyMeta.hint}
+              className="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/[0.08] rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-600 focus:outline-none focus:border-violet-400 dark:focus:border-violet-500/50 focus:ring-1 focus:ring-violet-400/20 dark:focus:ring-violet-500/20 transition-all font-mono"
+            />
+            {keyError && <p className="text-xs text-red-500 dark:text-red-400">{keyError}</p>}
+          </div>
+        )}
 
         <button type="submit" disabled={createAgent.isPending}
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-violet-900/30">

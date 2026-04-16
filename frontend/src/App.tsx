@@ -11,6 +11,7 @@ import AgentChat from './pages/AgentChat';
 import AgentLogs from './pages/AgentLogs';
 import AgentMemory from './pages/AgentMemory';
 import Settings from './pages/Settings';
+import Profile from './pages/Profile';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/agents/:id/logs" element={<PrivateRoute><AgentLogs /></PrivateRoute>} />
           <Route path="/agents/:id/memory" element={<PrivateRoute><AgentMemory /></PrivateRoute>} />
           <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+          <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AuthProvider>

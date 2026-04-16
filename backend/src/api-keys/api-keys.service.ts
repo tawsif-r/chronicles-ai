@@ -72,6 +72,7 @@ export class ApiKeysService {
       const plain = this.decrypt(k.encryptedKey);
       if (k.provider === 'anthropic') env['ANTHROPIC_API_KEY'] = plain;
       if (k.provider === 'openai') env['OPENAI_API_KEY'] = plain;
+      if (k.provider === 'openrouter') env['OPENROUTER_API_KEY'] = plain;
     }
     return env;
   }

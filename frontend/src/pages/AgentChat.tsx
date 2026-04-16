@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Send, Bot, User, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Send, Bot, User, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAgent } from '../hooks/useAgents';
 import { useChatHistory, useSendMessage } from '../hooks/useChat';
 import StatusBadge from '../components/StatusBadge';
@@ -11,17 +11,31 @@ export default function AgentChat() {
   const { data: history, isLoading } = useChatHistory(id!);
   const sendMessage = useSendMessage(id!);
   const [input, setInput] = useState('');
+  const [optimisticMsg, setOptimisticMsg] = useState<string | null>(null);
+  const [chatError, setChatError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history, sendMessage.isPending]);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [history, sendMessage.isPending, optimisticMsg]);
 
   async function handleSend() {
     const msg = input.trim();
     if (!msg || sendMessage.isPending) return;
     setInput('');
+    setChatError(null);
+    setOptimisticMsg(msg);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    await sendMessage.mutateAsync(msg);
+    try {
+      await sendMessage.mutateAsync(msg);
+      setOptimisticMsg(null); // history refetch will now include the real message
+    } catch (err: unknown) {
+      setOptimisticMsg(null);
+      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
+      const detail = axiosError?.response?.data?.message ?? axiosError?.message ?? 'Request failed';
+      setChatError(detail);
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -35,6 +49,7 @@ export default function AgentChat() {
   }
 
   const isAgentRunning = agent?.status === 'running';
+  const hasMessages = (history?.length ?? 0) > 0 || optimisticMsg !== null;
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-zinc-950">
@@ -59,7 +74,8 @@ export default function AgentChat() {
             <span className="w-5 h-5 border-2 border-gray-300 dark:border-zinc-700 border-t-violet-500 rounded-full animate-spin" />
           </div>
         )}
-        {!isLoading && history?.length === 0 && (
+
+        {!isLoading && !hasMessages && (
           <div className="flex flex-col items-center justify-center h-full py-16 text-center">
             <div className="w-12 h-12 rounded-full bg-violet-600/10 border border-violet-500/20 flex items-center justify-center mb-4">
               <Bot size={20} className="text-violet-500 dark:text-violet-400" />
@@ -68,6 +84,8 @@ export default function AgentChat() {
             <p className="text-xs text-gray-400 dark:text-zinc-600 mt-1">Send a message to start the conversation</p>
           </div>
         )}
+
+        {/* DB history */}
         {history?.map((msg) => (
           <div key={msg.id} className={`flex items-start gap-3 max-w-3xl ${msg.role === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}>
             <div className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center ${msg.role === 'user' ? 'bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-white/[0.08]' : 'bg-violet-600/20 border border-violet-500/30'}`}>
@@ -80,6 +98,20 @@ export default function AgentChat() {
             </div>
           </div>
         ))}
+
+        {/* Optimistic user message (shown immediately, before DB confirm) */}
+        {optimisticMsg && (
+          <div className="flex items-start gap-3 max-w-3xl ml-auto flex-row-reverse">
+            <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-white/[0.08]">
+              <User size={13} className="text-gray-500 dark:text-zinc-400" />
+            </div>
+            <div className="px-4 py-3 rounded-2xl rounded-tr-sm text-sm leading-relaxed max-w-[calc(100%-3rem)] bg-violet-600 text-white opacity-80">
+              <p className="whitespace-pre-wrap break-words">{optimisticMsg}</p>
+            </div>
+          </div>
+        )}
+
+        {/* AI thinking indicator */}
         {sendMessage.isPending && (
           <div className="flex items-start gap-3 max-w-3xl mr-auto">
             <div className="w-7 h-7 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center shrink-0">
@@ -87,11 +119,31 @@ export default function AgentChat() {
             </div>
             <div className="px-4 py-3.5 rounded-2xl rounded-tl-sm bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/[0.08]">
               <span className="flex gap-1">
-                {[0,1,2].map((i) => <span key={i} className="w-1.5 h-1.5 bg-gray-400 dark:bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
+                {[0, 1, 2].map((i) => (
+                  <span key={i} className="w-1.5 h-1.5 bg-gray-400 dark:bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                ))}
               </span>
             </div>
           </div>
         )}
+
+        {/* Error banner */}
+        {chatError && (
+          <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 max-w-3xl mr-auto">
+            <AlertCircle size={14} className="text-red-500 dark:text-red-400 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-red-700 dark:text-red-400">Message failed</p>
+              <p className="text-xs text-red-600 dark:text-red-500 mt-0.5 break-words">{chatError}</p>
+            </div>
+            <button
+              onClick={() => setChatError(null)}
+              className="shrink-0 text-red-400 dark:text-red-500 hover:text-red-600 dark:hover:text-red-300 transition-colors"
+            >
+              <RefreshCw size={12} />
+            </button>
+          </div>
+        )}
+
         <div ref={bottomRef} />
       </div>
 

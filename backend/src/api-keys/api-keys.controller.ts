@@ -5,7 +5,7 @@ import { ApiKeysService } from './api-keys.service';
 import type { RequestUser } from '../auth/jwt.strategy';
 
 class StoreKeyDto {
-  @IsEnum(['anthropic', 'openai', 'ollama'])
+  @IsEnum(['anthropic', 'openai', 'ollama', 'openrouter'])
   provider: string;
 
   @IsString()

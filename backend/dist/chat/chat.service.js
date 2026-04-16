@@ -11,34 +11,50 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ChatService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
-const axios_1 = __importDefault(require("axios"));
 const chat_message_entity_1 = require("./chat-message.entity");
 const agents_service_1 = require("../agents/agents.service");
+const api_keys_service_1 = require("../api-keys/api-keys.service");
+const llm_service_1 = require("../llm/llm.service");
 let ChatService = class ChatService {
-    constructor(msgRepo, agentsService) {
+    constructor(msgRepo, agentsService, apiKeysService, llmService) {
         this.msgRepo = msgRepo;
         this.agentsService = agentsService;
+        this.apiKeysService = apiKeysService;
+        this.llmService = llmService;
     }
     async sendMessage(agentId, workspaceId, message) {
         const agent = await this.agentsService.findOne(agentId, workspaceId);
-        if (agent.status !== 'running' || !agent.gatewayPort) {
-            throw new common_1.BadRequestException('Agent is not running');
-        }
-        // TODO: Confirm exact OpenClaw HTTP gateway endpoint + body shape (Open Question #2)
-        const { data } = await axios_1.default.post(`http://127.0.0.1:${agent.gatewayPort}/message`, { content: message });
+        // Load recent history from DB (last 50 turns = 100 messages)
+        const history = await this.msgRepo.find({
+            where: { agent: { id: agentId } },
+            order: { createdAt: 'ASC' },
+            take: 100,
+        });
+        const messages = [
+            ...history.map((m) => ({ role: m.role, content: m.content })),
+            { role: 'user', content: message },
+        ];
+        // Get decrypted API keys for this workspace
+        const apiKeys = await this.apiKeysService.buildEnvForAgent(workspaceId);
+        // Call LLM
+        const reply = await this.llmService.chat({
+            provider: agent.modelProvider,
+            model: agent.modelName,
+            systemPrompt: agent.soulMd,
+            messages,
+            apiKeys,
+        });
+        // Persist both turns
         await this.msgRepo.save([
             this.msgRepo.create({ agent, role: 'user', content: message }),
-            this.msgRepo.create({ agent, role: 'assistant', content: data.reply }),
+            this.msgRepo.create({ agent, role: 'assistant', content: reply }),
         ]);
-        return data.reply;
+        return reply;
     }
     async getHistory(agentId, workspaceId, page = 1, limit = 50) {
         await this.agentsService.findOne(agentId, workspaceId); // ownership check
@@ -55,6 +71,8 @@ exports.ChatService = ChatService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(chat_message_entity_1.ChatMessage)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        agents_service_1.AgentsService])
+        agents_service_1.AgentsService,
+        api_keys_service_1.ApiKeysService,
+        llm_service_1.LlmService])
 ], ChatService);
 //# sourceMappingURL=chat.service.js.map

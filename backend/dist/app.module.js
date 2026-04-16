@@ -21,6 +21,7 @@ const chat_module_1 = require("./chat/chat.module");
 const logs_module_1 = require("./logs/logs.module");
 const skills_module_1 = require("./skills/skills.module");
 const api_keys_module_1 = require("./api-keys/api-keys.module");
+const llm_module_1 = require("./llm/llm.module");
 const jwt_auth_guard_1 = require("./auth/jwt-auth.guard");
 // Entities
 const user_entity_1 = require("./users/user.entity");
@@ -75,6 +76,7 @@ exports.AppModule = AppModule = __decorate([
             logs_module_1.LogsModule,
             skills_module_1.SkillsModule,
             api_keys_module_1.ApiKeysModule,
+            llm_module_1.LlmModule,
         ],
         providers: [
             // Apply JwtAuthGuard globally; routes opt out with @Public()
