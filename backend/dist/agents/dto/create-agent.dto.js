@@ -20,7 +20,7 @@ __decorate([
     __metadata("design:type", String)
 ], CreateAgentDto.prototype, "name", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(['claude', 'openai', 'ollama']),
+    (0, class_validator_1.IsEnum)(['claude', 'openai', 'ollama', 'openrouter']),
     __metadata("design:type", String)
 ], CreateAgentDto.prototype, "modelProvider", void 0);
 __decorate([

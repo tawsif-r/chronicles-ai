@@ -7,7 +7,7 @@ export class UpdateAgentDto {
   name?: string;
 
   @IsOptional()
-  @IsEnum(['claude', 'openai', 'ollama'])
+  @IsEnum(['claude', 'openai', 'ollama', 'openrouter'])
   modelProvider?: ModelProvider;
 
   @IsOptional()

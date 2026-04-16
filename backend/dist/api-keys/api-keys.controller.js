@@ -19,7 +19,7 @@ const api_keys_service_1 = require("./api-keys.service");
 class StoreKeyDto {
 }
 __decorate([
-    (0, class_validator_1.IsEnum)(['anthropic', 'openai', 'ollama']),
+    (0, class_validator_1.IsEnum)(['anthropic', 'openai', 'ollama', 'openrouter']),
     __metadata("design:type", String)
 ], StoreKeyDto.prototype, "provider", void 0);
 __decorate([

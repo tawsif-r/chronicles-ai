@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bot, LayoutDashboard, Settings, LogOut, Sparkles, Sun, Moon, X } from 'lucide-react';
+import { Bot, LayoutDashboard, Settings, LogOut, Sparkles, Sun, Moon, X, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -7,10 +7,11 @@ const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/agents/new', icon: Bot, label: 'New Agent' },
   { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: '/profile', icon: User, label: 'Profile' },
 ];
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const { theme, toggle } = useTheme();
 
@@ -60,6 +61,13 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
       {/* Footer */}
       <div className="p-3 border-t border-gray-200 dark:border-white/[0.06] space-y-0.5">
+        {/* User email */}
+        {user && (
+          <div className="px-3 py-2 text-xs text-gray-600 dark:text-zinc-500 truncate">
+            {user.email}
+          </div>
+        )}
+
         {/* Theme toggle */}
         <button
           onClick={toggle}

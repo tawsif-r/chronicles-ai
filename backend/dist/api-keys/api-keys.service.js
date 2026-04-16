@@ -103,6 +103,8 @@ let ApiKeysService = class ApiKeysService {
                 env['ANTHROPIC_API_KEY'] = plain;
             if (k.provider === 'openai')
                 env['OPENAI_API_KEY'] = plain;
+            if (k.provider === 'openrouter')
+                env['OPENROUTER_API_KEY'] = plain;
         }
         return env;
     }

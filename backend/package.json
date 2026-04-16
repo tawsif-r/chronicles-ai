@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.51.0",
     "@chronicles/shared": "workspace:*",
     "@nestjs/bull": "^10.2.3",
     "@nestjs/common": "^10.4.0",
@@ -26,6 +27,7 @@
     "bull": "^4.16.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "openai": "^4.104.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.12.0",

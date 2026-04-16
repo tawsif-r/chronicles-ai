@@ -6,7 +6,7 @@ export class CreateAgentDto {
   @MinLength(1)
   name: string;
 
-  @IsEnum(['claude', 'openai', 'ollama'])
+  @IsEnum(['claude', 'openai', 'ollama', 'openrouter'])
   modelProvider: ModelProvider;
 
   @IsString()

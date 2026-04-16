@@ -13,6 +13,7 @@ import { ChatModule } from './chat/chat.module';
 import { LogsModule } from './logs/logs.module';
 import { SkillsModule } from './skills/skills.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
+import { LlmModule } from './llm/llm.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 // Entities
@@ -69,6 +70,7 @@ const ALL_ENTITIES = [
     LogsModule,
     SkillsModule,
     ApiKeysModule,
+    LlmModule,
   ],
   providers: [
     // Apply JwtAuthGuard globally; routes opt out with @Public()
