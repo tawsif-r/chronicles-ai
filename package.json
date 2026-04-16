@@ -9,7 +9,6 @@
     "dev:frontend": "pnpm --filter frontend dev",
     "build:backend": "pnpm --filter backend build",
     "build:frontend": "pnpm --filter frontend build",
-    "build:shared": "pnpm --filter @chronicles/shared build",
-    "dev:openclaw": "pnpm --filter @chronicles/openclaw dev"
+    "build:shared": "pnpm --filter @chronicles/shared build"
   }
 }
