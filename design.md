@@ -25,9 +25,10 @@
 | Skills registry | `backend/src/skills/` | Done |
 | Frontend routing + AuthContext | `frontend/src/App.tsx`, `contexts/` | Done |
 | Frontend API client + hooks | `frontend/src/api/`, `hooks/` | Done |
-| All pages (Login→Chat→Logs→Memory) | `frontend/src/pages/` | Done — unstyled stubs |
+| All pages (Login→Chat→Logs→Memory) | `frontend/src/pages/` | Done — fully styled with Tailwind v4 |
+| UI components (Sidebar, AgentCard, StatusBadge, Layout) | `frontend/src/components/` | Done — dark zinc + violet accent design system |
 
-**Current state (April 2026):** App boots and is fully functional up to the OpenClaw boundary. Register, login, create agents, and manage API keys all work. Starting an agent will succeed if `openclaw` is in PATH; chat will work once open question #2 is resolved.
+**Current state (April 2026):** App boots and is fully functional up to the OpenClaw boundary. All frontend pages are fully styled (Tailwind v4, Inter font, dark minimal design). Register, login, create agents, and manage API keys all work. Starting an agent will succeed if `openclaw` is in PATH; chat will work once open question #2 is resolved.
 
 **Next:** Verify OpenClaw gateway contract (open question #2), then wire up chat end-to-end.
 
@@ -361,41 +362,42 @@ axios                  HTTP proxy calls to OpenClaw gateway
 ```
 frontend/src/
 ├── main.tsx
-├── App.tsx                 router setup (react-router-dom v6)
-├── shared/
-│   └── types.ts            mirrors backend shared types
+├── App.tsx                 router setup, PrivateRoute wraps pages in Layout
+├── index.css               @import "tailwindcss"; @theme { Inter font }
+│
 ├── api/
-│   ├── client.ts           axios instance, JWT interceptor
-│   ├── agents.ts
-│   ├── auth.ts
-│   ├── chat.ts
-│   └── logs.ts
+│   ├── client.ts           axios instance, Bearer header, auto-refresh on 401
+│   ├── agents.ts           agents CRUD + memory + lifecycle
+│   ├── auth.ts             login, register, refresh
+│   └── chat.ts             send message, load history
+│
 ├── hooks/
-│   ├── useAuth.ts
-│   ├── useAgents.ts        TanStack Query wrappers
-│   ├── useChat.ts          send message, load history
-│   └── useLiveLogs.ts      socket.io hook
+│   ├── useAgents.ts        TanStack Query: list, get, create, update, start/stop
+│   ├── useChat.ts          TanStack Query: history + optimistic send
+│   └── useLiveLogs.ts      socket.io hook: subscribe-logs room, returns LogLine[]
+│
 ├── pages/
-│   ├── Login.tsx
-│   ├── Register.tsx
-│   ├── Dashboard.tsx       agent cards, health overview
-│   ├── AgentList.tsx
-│   ├── AgentNew.tsx        create agent form
-│   ├── AgentDetail.tsx     view + edit config
-│   ├── AgentChat.tsx       ← core use case: chat with agent in browser
-│   ├── AgentLogs.tsx       live log viewer
-│   ├── AgentMemory.tsx     read/write MEMORY.md
-│   └── Settings.tsx        API keys, model selection
+│   ├── Login.tsx           glass card centered, ambient violet glow bg, eye toggle
+│   ├── Register.tsx        same design as Login
+│   ├── Dashboard.tsx       agent grid, skeleton loading, Bot empty state
+│   ├── AgentNew.tsx        model preset buttons, custom model input, SOUL.md textarea
+│   ├── AgentDetail.tsx     tabbed editor (SOUL/TOOLS/IDENTITY/HEARTBEAT), start/stop/chat/logs/memory actions in top bar, unsaved-changes footer
+│   ├── AgentChat.tsx       AI Studio-style bubbles, typing dots, auto-resize textarea, agent-not-running banner
+│   ├── AgentLogs.tsx       terminal viewer: line numbers, level colors, timestamp on hover
+│   ├── AgentMemory.tsx     full-screen monospace editor, Save/Check button
+│   └── Settings.tsx        provider selector buttons, password input, key list with delete
+│
 ├── components/
-│   ├── AgentCard.tsx       name, status badge, start/stop/chat buttons
-│   ├── StatusBadge.tsx
-│   ├── ChatWindow.tsx      message list + input box
-│   ├── LogViewer.tsx       scrollable terminal-style
-│   ├── ConfigEditor.tsx    textarea for SOUL.md, TOOLS.md etc.
-│   └── ChannelConfig.tsx
+│   ├── Layout.tsx          Sidebar + <main> wrapper
+│   ├── Sidebar.tsx         Sparkles logo, NavLink items, logout — violet active state
+│   ├── AgentCard.tsx       hover glow, Chat/Logs/Start-Stop actions
+│   └── StatusBadge.tsx     colored dot: emerald/amber(pulse)/zinc/red per status
+│
 └── contexts/
-    └── AuthContext.tsx     JWT storage, current user, workspace
+    └── AuthContext.tsx     JWT in localStorage, currentUser, logout
 ```
+
+**Design system summary:** zinc-950 base, `border-white/[0.08]` borders, violet-600 accent, Inter font, lucide-react icons. See ADR-014, ADR-015, ADR-016 in `architecture-decisions.md` for full rationale.
 
 **Pages by route:**
 

@@ -10,12 +10,11 @@ export default function Dashboard() {
   const total = agents?.length ?? 0;
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      {/* Header */}
+    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-white tracking-tight">Agents</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Agents</h1>
+          <p className="text-sm text-gray-500 dark:text-zinc-500 mt-0.5">
             {isLoading ? '—' : `${running} running · ${total} total`}
           </p>
         </div>
@@ -28,20 +27,19 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* Content */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-36 rounded-xl bg-zinc-900 border border-white/[0.06] animate-pulse" />
+            <div key={i} className="h-36 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-white/[0.06] animate-pulse" />
           ))}
         </div>
       ) : agents?.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/[0.08] flex items-center justify-center mb-4">
-            <Bot size={24} className="text-zinc-600" />
+          <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-white/[0.08] flex items-center justify-center mb-4">
+            <Bot size={24} className="text-gray-400 dark:text-zinc-600" />
           </div>
-          <p className="text-base font-medium text-zinc-400">No agents yet</p>
-          <p className="text-sm text-zinc-600 mt-1 mb-6">Create your first agent to get started</p>
+          <p className="text-base font-medium text-gray-500 dark:text-zinc-400">No agents yet</p>
+          <p className="text-sm text-gray-400 dark:text-zinc-600 mt-1 mb-6">Create your first agent to get started</p>
           <Link
             to="/agents/new"
             className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-lg transition-colors"

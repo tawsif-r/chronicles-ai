@@ -147,6 +147,62 @@
 
 ---
 
+## ADR-014: Tailwind v4 — `@tailwindcss/vite` Plugin, No Config File
+
+**Decision:** Use Tailwind CSS v4 (not v3) in the frontend via the `@tailwindcss/vite` plugin.
+
+**Rationale:** Tailwind v4 ships a first-class Vite plugin that requires zero config file. All customization is done in CSS via `@theme { }` blocks. This removes `tailwind.config.js` entirely, keeping the frontend leaner.
+
+**Setup:**
+- `pnpm add -D @tailwindcss/vite tailwindcss` in `frontend/`
+- `vite.config.ts`: `plugins: [react(), tailwindcss()]`
+- `src/index.css`: `@import "tailwindcss";` + `@theme { --font-sans: 'Inter', ...; }`
+
+**Implication:** Do NOT add a `tailwind.config.js`. Custom colors and theme tokens go in `index.css` `@theme` block. Tailwind v4 utility classes are otherwise identical in syntax to v3.
+
+---
+
+## ADR-015: Icon Library — lucide-react
+
+**Decision:** Use `lucide-react` for all UI icons.
+
+**Rationale:** Clean SVG-based icons, tree-shakeable, consistent stroke weight, and first-class React support (`<Icon size={N} className="..." />`). Zero runtime overhead — each import is just a tiny SVG component.
+
+**Usage:** `import { Bot, Send, Brain, Key } from 'lucide-react'` — import only what you use.
+
+---
+
+## ADR-016: Design System — Dark Minimal, Violet Accent, Inter Font
+
+**Decision:** The frontend uses a curated design language inspired by Google AI Studio and Apple product pages:
+
+| Token | Value | Usage |
+|---|---|---|
+| Base background | `bg-zinc-950` / `#09090b` | Page backgrounds |
+| Surface cards | `bg-zinc-900` | Cards, panels, inputs |
+| Border | `border-white/[0.08]` | Subtle borders everywhere |
+| Accent | `violet-600` / `violet-500` | CTAs, active states, focus rings |
+| Active nav | `bg-violet-600/15 text-violet-300 border-violet-500/20` | Sidebar active link |
+| Text primary | `text-white` / `text-zinc-200` | Headings, body |
+| Text muted | `text-zinc-500` / `text-zinc-600` | Labels, placeholders |
+| Success | `emerald-500` | Running status, save confirmations |
+| Warning | `amber-500` | Stopped/warning states |
+| Error | `red-400` | Error states, delete actions |
+| Font | Inter (Google Fonts) | All text via `@theme --font-sans` |
+| Radius | `rounded-xl` / `rounded-2xl` | Cards; `rounded-lg` for buttons |
+
+**Rationale:** Zinc neutrals recede visually. The single violet accent makes interactive elements immediately identifiable without visual noise. Glass-morphism borders (`border-white/[0.08]`) give depth without heavy shadows.
+
+**Glass morphism pattern:** `bg-zinc-900 border border-white/[0.08] rounded-xl` — used on all cards, modals, and input containers throughout the app.
+
+**Status dot pattern (StatusBadge):**
+- `running` → `bg-emerald-500` with `animate-pulse`
+- `starting` → `bg-amber-500` with `animate-pulse`
+- `stopped` → `bg-zinc-600` static
+- `error` → `bg-red-500` static
+
+---
+
 ## Open Questions (still to resolve)
 
 1. **Backend restart behavior** — *Lean toward (a): mark all `status='running'` as `status='error'` on startup.*
