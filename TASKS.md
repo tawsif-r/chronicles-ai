@@ -5,55 +5,77 @@
 ---
 
 ## Current Status
-**App is running.** Backend :3000 · Frontend :5173 · Postgres + Redis in Docker.
+**Full stack functional.** Backend :3000 · Frontend :5173 · Postgres + Redis in Docker.
+Auth, agent CRUD, inline chat, and API key management all working.
 
 ---
 
-## Last Completed (Session — April 16 2026)
+## Recently Completed (Session — April 16 2026)
 
-### ✅ Theme toggle (dark / light)
-- Created `frontend/src/contexts/ThemeContext.tsx` — persists to localStorage, toggles `.dark` on `<html>`
-- Enabled Tailwind v4 dark mode via `@custom-variant dark` in `index.css`
-- Sun/Moon toggle button at bottom of Sidebar
+### ✅ Inline LLM Architecture (replaced OpenClaw child processes)
+- Removed OpenClaw package from monorepo
+- Implemented LLmService routing to @anthropic-ai/sdk and OpenAI SDK
+- ChatService now calls LLmService inline (no HTTP proxy, no child process spawn)
+- Agent start/stop flip status in DB (no process lifecycle management)
+- Chat history persisted to chat_message table
+- API keys decrypted at request time, never logged
 
-### ✅ Mobile / tablet responsive layout
-- `Layout.tsx` — hamburger top bar on mobile, slide-in sidebar drawer with backdrop overlay
-- Sidebar collapses on `< lg`, stays fixed on `lg+`
-- All pages use responsive padding (`p-6 lg:p-8`)
+### ✅ Fixed Chat Flow End-to-End
+- ChatService loads last 100 messages from DB as context
+- LLmService routes correctly based on agent.modelProvider
+- Explicit API key validation with clear error messages
+- Frontend error banner shows backend errors (no silent failures)
 
-### ✅ Nav active-state flicker fix
-- Root cause: active NavLink added `border` that inactive links didn't have → layout shift
-- Fix: always apply `border border-transparent`, only color changes on active
+### ✅ Network Access (LAN)
+- Backend listening on 0.0.0.0:3000
+- Frontend Vite on 0.0.0.0:5173
+- CORS updated to allow local network IPs
+- Accessible from peer machines on same network (192.168.3.35:5173)
 
-### ✅ Light/dark classes on all components
-- All pages and components updated with `light default / dark:` Tailwind variants
-- Files touched: Layout, Sidebar, StatusBadge, AgentCard, Dashboard, AgentDetail, AgentChat, AgentLogs, AgentMemory, AgentNew, Settings, Login, Register
+### ✅ Removed Redundant API Key Field
+- Agent creation form no longer has inline API key field
+- Users manage keys globally in Settings (one set per workspace)
+- All agents in workspace share same keys
 
-### ✅ .gitignore cleanup
-- Fixed `node_modules/` to match at all depths (was `/node_modules` — root only)
-- Added `dist/`, `*.tsbuildinfo`, `**/.vite/`
-- Removed already-tracked `frontend/node_modules/` from git index
+### ✅ Improved .gitignore
+- Organized into sections: Build output, Secrets, Logs, Caches, IDE, Docker, Workspace data
+- Untracked backend/dist/ from git (was committed before proper .gitignore)
+- Added `**/.vite/`, `/workspaces/`, `/tmp/`
 
 ---
 
-## Open / Next Tasks
+## Next Tasks (v1.1 → v1.2)
 
-### 🔲 Verify OpenClaw gateway contract (Open Question #2)
-- `chat/chat.service.ts:27` has a TODO — assumes `POST /{port}/message` `{ content }` → `{ reply }`
-- **Blocks end-to-end chat.** Must confirm from OpenClaw source before testing.
+### 🔲 Implement Telegram channel module
+- TelegramModule listening to webhook at POST /webhooks/telegram/:token
+- TelegramService sends/receives via telegraf or node-telegram-bot-api
+- Routes messages to ChatService.sendMessage()
+- Persist channel config in AgentChannel table (token, chat ID mapping)
 
-### 🔲 Implement restart recovery (Open Question #1)
-- `runtime.service.ts → onApplicationBootstrap` has a TODO
-- On backend restart, agents with `status='running'` in DB should be marked `status='error'`
-- Simple: query all running agents on boot, set to error, log warning
+### 🔲 Implement Slack channel module
+- SlackModule listening to Slack Events API (message event)
+- SlackService sends/receives via @slack/bolt
+- Routes messages to ChatService.sendMessage()
+- Persist channel config (team ID, bot token, channel ID)
 
-### 🔲 Test full chat flow end-to-end
-- Depends on Open Question #2 being resolved first
+### 🔲 Implement WhatsApp channel module
+- WhatsappModule listening to webhook (Twilio or Meta Business API)
+- WhatsappService sends/receives via twilio or whatsapp-api
+- Routes messages to ChatService.sendMessage()
+
+### 🔲 Implement Discord channel module
+- DiscordModule using discord.js
+- Routes messages to ChatService.sendMessage()
 
 ### 🔲 Production hardening
 - TypeORM: generate migration, set `synchronize: false`
-- Set `WORKSPACE_BASE_PATH` to a persistent directory
-- PM2 config for backend
+- Environment checklist: all secrets in env, no defaults
+- PM2 config for backend + graceful shutdown
+- Database backup strategy
+
+### 🔲 Streaming chat responses (optional for v1.2)
+- Switch ChatController from request/response to SSE (Server-Sent Events)
+- Frontend switches to stream consumption instead of single response
 
 ---
 
@@ -71,3 +93,17 @@ pnpm dev:frontend  # :5173
 ```
 
 See `design.md → Running Locally` for full setup steps.
+
+---
+
+## Key Files (for reference)
+
+| File | Purpose |
+|---|---|
+| `backend/src/llm/llm.service.ts` | Routes to LLM provider SDKs |
+| `backend/src/chat/chat.service.ts` | Chat message handling + history |
+| `backend/src/api-keys/api-keys.service.ts` | Key encryption/decryption |
+| `backend/src/runtime/runtime.service.ts` | Agent status flip (no processes) |
+| `frontend/src/pages/AgentChat.tsx` | Chat UI + optimistic updates |
+| `architecture-decisions.md` | Key decisions (ADR-002 onwards) |
+| `design.md` | Full system reference |

@@ -17,49 +17,60 @@
 
 ---
 
-## ADR-002: Dynamic Port Pool for OpenClaw Processes
+## ADR-002: No Child Processes — Inline LLM Calls (v1.1)
 
-**Decision:** RuntimeService manages a port pool (18800–19800). Each running agent is assigned a unique port, saved to `agent.gatewayPort` in DB.
+**Decision:** Removed agent child-process model. Agents are purely logical state in DB (status, config). Chat calls LLM inline via NestJS backend — no spawned processes, no port pool.
 
-**Rationale:** OpenClaw binds an HTTP gateway at a fixed port. Multiple agents running simultaneously need different ports. The port is tracked in DB so the frontend and ChatService know where to proxy messages.
+**Rationale:** Child-process overhead (port pool, restart recovery, binary management) exceeded value for simple chat. Direct calls via @anthropic-ai/sdk and OpenAI SDK are simpler, more testable, and sufficient for v1. Future channel integrations (Telegram, Slack) will be webhook handlers in NestJS, not child processes.
 
-**Trade-off:** Port range caps concurrent agents at 1000 per server. Acceptable for v1.
+**Trade-off:** No long-running agent sessions per process. Agent context (conversation history) is DB-resident only, not an in-memory LLM loop. Acceptable since chat is request-response and conversation is stored in chat_message table.
 
-**Alternative considered:** Unix domain sockets per agent — avoids port exhaustion but OpenClaw may not support it without patching.
+**Architecture:** Agent `start` and `stop` just flip status in DB. No spawn, no ports, no process logs.
 
-**Revisit when:** Running more than ~800 concurrent agents, or if we move to multiple servers.
-
----
-
-## ADR-003: DB as Source of Truth for Config, EXCEPT MEMORY.md
-
-**Decision:**
-- `SOUL.md`, `TOOLS.md`, `IDENTITY.md`, `HEARTBEAT.md` → stored in DB, written to disk at agent start
-- `MEMORY.md` → owned by OpenClaw at runtime, read/written directly from disk, NOT cached in DB
-
-**Rationale:** OpenClaw writes to `MEMORY.md` continuously during execution. Syncing to DB on every write is unnecessary overhead and creates conflict risk. The Memory page reads from disk directly.
-
-**Implication:** Never trust the DB for `memoryMd`. Always read from disk via `GET /api/agents/:id/memory`.
+**Revisit when:** Need agent-owned long-running tasks (background jobs, scheduled actions), at which point we'd implement via Bull queue processors, not child processes.
 
 ---
 
-## ADR-004: Web Chat via Synchronous HTTP Proxy (v1)
+## ADR-003: DB as Source of Truth for Config
 
-**Decision:** `POST /api/agents/:id/chat` proxies the message to OpenClaw's HTTP gateway, waits for the response, and returns it. No streaming in v1.
+**Decision:** Agent config (`SOUL.md`, `TOOLS.md`, `IDENTITY.md`, `HEARTBEAT.md`) is stored in DB and never written to disk (no child process needed).
 
-**Rationale:** Simplest correct implementation. OpenClaw supports synchronous HTTP responses from its gateway.
+**Rationale:** No agent process, no on-disk config files. All config stays in agent table columns. LlmService reads from DB at request time.
 
-**Trade-off:** Long-running agent responses (e.g., agents that run shell commands) will block the HTTP connection. Frontend should show a loading indicator.
-
-**Revisit when:** Response times exceed acceptable UX thresholds. Switch to SSE (Server-Sent Events) or WebSocket-based streaming.
+**Implication:** File-based memory (MEMORY.md) is removed. Conversation history is DB-resident only (`chat_message` table).
 
 ---
 
-## ADR-005: API Keys Encrypted in DB, Injected at Start
+## ADR-004: Inline LLM Calls (Chat)
 
-**Decision:** LLM provider API keys (Anthropic, OpenAI) are AES-256-GCM encrypted and stored in the `api_key` table. At agent start, the relevant key is decrypted and injected as an environment variable into the OpenClaw child process.
+**Decision:** `POST /api/agents/:id/chat` calls LLmService directly in NestJS. LLmService routes to Anthropic/OpenAI/OpenRouter SDK based on agent.modelProvider. No HTTP proxying.
 
-**Rationale:** Keys must be stored somewhere. Encryption at rest mitigates risk from DB compromise. Injecting as env var at spawn time is how OpenClaw expects to receive them.
+**Rationale:** Simpler than child-process gateway. Direct SDK calls are faster, more testable, and no network latency.
+
+**Flow:** 
+1. ChatService loads last 100 messages from chat_message table (conversation context)
+2. Appends user message
+3. Calls LLmService.chat() with messages, SOUL.md, provider, model
+4. LLmService picks correct SDK and calls it with decrypted API key
+5. Reply saved to chat_message table
+6. Response returned to frontend
+
+**Trade-off:** No agent-owned background tasks yet. Future background jobs (e.g., scheduled actions) would use Bull queue processors.
+
+---
+
+## ADR-005: API Keys Encrypted in DB, Decrypted at Request Time
+
+**Decision:** LLM provider API keys (Anthropic, OpenAI, OpenRouter) are AES-256-GCM encrypted and stored in the `api_key` table (scoped to workspace). At chat time, ChatService requests decrypted keys from ApiKeysService, passes them to LLmService.
+
+**Rationale:** Keys must be stored somewhere. Encryption at rest mitigates risk from DB compromise. Decrypting at request time (not spawn time) avoids storing decrypted keys in environment.
+
+**Flow:**
+1. User adds key in Settings → POST /api/api-keys { provider, key }
+2. ApiKeysService encrypts key and saves to DB
+3. At chat time: ChatService calls apiKeysService.buildEnvForAgent(workspaceId)
+4. Returns object { ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY } — only decrypts what's in DB
+5. Passed to LLmService.chat() — never persisted or logged
 
 **Implication:** The encryption secret (`API_KEY_ENCRYPTION_SECRET`) is the crown jewel — must be in env, never committed.
 
@@ -203,15 +214,30 @@
 
 ---
 
-## Open Questions (still to resolve)
+## ADR-017: Future Channel Architecture (Telegram, Slack, WhatsApp, Discord)
 
-1. **Backend restart behavior** — *Lean toward (a): mark all `status='running'` as `status='error'` on startup.*
-   Scaffolded with a `TODO` comment in `runtime.service.ts` → `onApplicationBootstrap`. Implement before first production deploy.
+**Decision:** Channels will be implemented as NestJS modules that listen to webhooks. Each channel module:
+- Listens to incoming messages (Telegram webhook, Slack Events API, etc.)
+- Routes message to ChatService with agent ID
+- Returns reply back through channel SDK
 
-2. **OpenClaw HTTP gateway contract** — *Unresolved. Blocks `ChatService`.*
-   Currently assumes `POST http://127.0.0.1:{port}/message` with body `{ content: string }` and response `{ reply: string }`. Marked with a `TODO` comment in `chat/chat.service.ts:27`. **Verify from OpenClaw source before testing chat.**
+No child processes, no separate runtime. Agent is stateless from channel perspective.
 
-3. **OpenClaw binary location** — *Resolved via env var.*
-   `RuntimeService` reads `OPENCLAW_BINARY` from `.env` (defaults to `openclaw`). Set it to a full path if OpenClaw is not in PATH. No code change needed.
+**Pattern Example (Telegram):**
+```
+TelegramModule
+├── telegram.controller.ts   — POST /webhooks/telegram/:token
+├── telegram.service.ts      — sends/receives via Telegram SDK
+└── Wires into ChatService:  POST /api/agents/:id/chat → save to chat_message table
+```
 
-4. **Auth token storage** — *Resolved: localStorage (see ADR-008).*
+**Flow:**
+1. Telegram webhook → TelegramController
+2. Extract message + chat ID from Telegram payload
+3. Call ChatService.sendMessage(agentId, workspaceId, message)
+4. Receive reply
+5. Send reply back to Telegram via SDK
+
+**Scope:** v1 stores channel config (token, chat ID) in AgentChannel table but does not implement channel modules yet.
+
+---

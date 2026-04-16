@@ -17,9 +17,10 @@
 | Auth (register/login/refresh/JWT guard) | `backend/src/auth/` | Done |
 | Users | `backend/src/users/` | Done |
 | Workspaces (auto-create on register) | `backend/src/workspaces/` | Done |
-| Agents CRUD + config file writes | `backend/src/agents/` | Done |
-| Runtime (spawn/kill/restart, port pool) | `backend/src/runtime/` | Done — see open question #2 before testing |
-| Chat (proxy to OpenClaw gateway) | `backend/src/chat/` | Done — **blocked on open question #2** |
+| Agents CRUD | `backend/src/agents/` | Done |
+| Runtime (status flip) | `backend/src/runtime/` | Done |
+| LLM Service (inline calls) | `backend/src/llm/` | Done |
+| Chat (inline LLM calls) | `backend/src/chat/` | Done |
 | Logs (persist + Socket.io stream) | `backend/src/logs/` | Done |
 | API Keys (AES-256-GCM encrypt/decrypt) | `backend/src/api-keys/` | Done |
 | Skills registry | `backend/src/skills/` | Done |
@@ -28,9 +29,9 @@
 | All pages (Login→Chat→Logs→Memory) | `frontend/src/pages/` | Done — fully styled with Tailwind v4 |
 | UI components (Sidebar, AgentCard, StatusBadge, Layout) | `frontend/src/components/` | Done — dark zinc + violet accent design system |
 
-**Current state (April 2026):** App boots and is fully functional up to the OpenClaw boundary. All frontend pages are fully styled (Tailwind v4, Inter font, dark minimal design). Register, login, create agents, and manage API keys all work. Starting an agent will succeed if `openclaw` is in PATH; chat will work once open question #2 is resolved.
+**Current state (April 2026):** Full stack functional. Auth, agent CRUD, chat, logs, and API key management all working. Chat calls LLM inline via @anthropic-ai/sdk and OpenAI SDK. Agent start/stop flip status in DB (no child processes). Conversation history persisted to DB. All frontend pages fully styled (Tailwind v4, Inter font, dark minimal design).
 
-**Next:** Verify OpenClaw gateway contract (open question #2), then wire up chat end-to-end.
+**Next:** Implement channel modules (Telegram, Slack, WhatsApp, Discord) as NestJS webhook handlers. See ADR-017.
 
 ---
 
@@ -130,13 +131,13 @@ Note: the Docker setup mounts source dirs as volumes, so hot-reload works inside
 A **web platform** where users:
 
 1. Register and log in
-2. Create AI agents — define the agent's identity, tools, and model
-3. Start their agent (we manage the process lifecycle)
+2. Create AI agents — define the agent's identity and system prompt (SOUL.md)
+3. Start their agent (flip status in DB — no child process)
 4. **Talk to their agent directly in the browser** (web chat interface)
-5. Optionally connect agents to external channels (Telegram, Slack, etc.)
-6. Monitor logs, inspect and edit agent memory, view activity
+5. Connect agents to external channels (Telegram, Slack, WhatsApp, Discord)
+6. Monitor activity and manage API keys
 
-The underlying runtime engine is **OpenClaw** — a self-hosted AI agent framework that handles the LLM loop, tool execution, memory, and channel integrations. We wrap it with auth, multi-tenancy, a database, and a proper web UI.
+The backend handles all LLM interactions directly via @anthropic-ai/sdk and OpenAI SDK. No external runtime binary needed.
 
 ```
 [ Browser (React SPA) ]
@@ -145,12 +146,13 @@ The underlying runtime engine is **OpenClaw** — a self-hosted AI agent framewo
          v
 [ NestJS Backend ]
          |
-         | child_process spawn (per agent)
-         v
-[ OpenClaw Process ]  <-- one per running agent, on its own port
-         |
-         v
-[ LLM APIs · Tools · External Channels ]
+    ┌────┴────┐
+    v         v
+[ LLM APIs ]  [ Messaging Channels (webhooks) ]
+ (Anthropic,   Telegram, Slack, WhatsApp,
+  OpenAI,      Discord
+  OpenRouter,
+  Ollama)
 ```
 
 ---
@@ -179,19 +181,20 @@ The underlying runtime engine is **OpenClaw** — a self-hosted AI agent framewo
 ```
 1. User clicks "Start" on the agent card
 2. POST /api/agents/:id/start →
-   a. AgentsService writes config files to disk (SOUL.md, TOOLS.md, etc.)
-   b. RuntimeService picks a free port from the pool (18800–19800)
-   c. Saves the port to agent.gatewayPort in DB
-   d. Spawns: `openclaw start --port {gatewayPort}` as a child process
-   e. Agent status → 'running'
+   a. RuntimeService updates agent.status → 'running' in DB
+   b. No child process spawned
 3. User clicks "Chat" → opens /agents/:id/chat
 4. User types a message:
    POST /api/agents/:id/chat  body: { message: "Hello" }
-   → Backend proxies the message to OpenClaw at 127.0.0.1:{gatewayPort}
-   → OpenClaw runs the LLM loop, returns the response
-   → Backend saves the exchange to chat_message table
+   → ChatService loads last 100 messages from chat_message table
+   → Calls LLmService.chat() with messages, SOUL.md, provider, model
+   → LLmService decrypts API key from api_key table
+   → Routes to Anthropic/OpenAI/OpenRouter SDK
+   → Returns response
+   → Backend saves user message and reply to chat_message table
    → Response returned to frontend
 5. User sees the response in a chat UI
+6. To stop: User clicks "Stop" → agent.status → 'stopped'
 ```
 
 ### Monitoring
@@ -203,41 +206,37 @@ The underlying runtime engine is **OpenClaw** — a self-hosted AI agent framewo
 
 ---
 
-## 3. How OpenClaw Works
+## 3. How LLM Service Works
 
-OpenClaw is a Node.js/TypeScript AI agent runtime. Three internal layers:
-
-```
-CHANNEL LAYER  -- receives messages from WhatsApp, Telegram, Slack, Discord, HTTP
-BRAIN LAYER    -- agent runtime: resolves sessions, assembles context, calls LLM
-BODY LAYER     -- tool execution: shell, file system, browser automation, MCP servers
-```
-
-Every message follows this pipeline:
+LLmService is a NestJS injectable that wraps LLM provider SDKs. Every chat message follows this pipeline:
 
 ```
-1. Message arrives (from channel or HTTP gateway)
-2. Gateway assigns it to a session/lane
-3. Agent runtime assembles context (MEMORY.md + chat history)
-4. LLM is called (Claude, GPT, or local model)
-5. LLM decides on a tool action (ReAct loop)
-6. Tool executes (shell command, file read, browser action)
-7. Result goes back to LLM
-8. Final response sent back to caller
+1. ChatService receives message from user
+2. Loads agent config from DB (SOUL.md, modelProvider, modelName)
+3. Loads last 100 chat messages from chat_message table (conversation context)
+4. Calls LLmService.chat() with:
+   - provider: 'claude' | 'openai' | 'openrouter' | 'ollama'
+   - model: string (e.g., 'claude-sonnet-4-6', 'gpt-4o-mini')
+   - systemPrompt: agent.soulMd (the agent's identity)
+   - messages: { role, content }[] (chat history + new user message)
+   - apiKeys: { ANTHROPIC_API_KEY, OPENAI_API_KEY, ... } (decrypted from DB)
+5. LLmService routes to correct SDK:
+   - Claude → @anthropic-ai/sdk (apiKey via ANTHROPIC_API_KEY env)
+   - OpenAI/OpenRouter → openai SDK (apiKey + baseURL)
+   - Ollama → openai SDK (baseURL: http://localhost:11434/v1)
+6. SDK calls LLM API
+7. Response returned to ChatService
+8. ChatService saves user message + assistant reply to chat_message table
 ```
 
-OpenClaw reads config from disk at startup:
+Agent config is DB-resident, not disk-resident:
 
-| File           | Purpose                                      |
-|----------------|----------------------------------------------|
-| `SOUL.md`      | Agent identity, instructions, personality    |
-| `TOOLS.md`     | Which tools this agent can use               |
-| `MEMORY.md`    | Persistent memory (written by agent at runtime) |
-| `IDENTITY.md`  | Display name, avatar text                    |
-| `HEARTBEAT.md` | Scheduled tasks / event loop config          |
-
-By default OpenClaw binds its HTTP gateway to `127.0.0.1:18789`.
-**We override this port per agent** — see Section 12.
+| Column       | Purpose                       |
+|--------------|-------------------------------|
+| `soulMd`     | System prompt / agent identity |
+| `toolsMd`    | Tools config (for future use) |
+| `identityMd` | Display name, avatar          |
+| `heartbeatMd`| Scheduled tasks (for future)  |
 
 ---
 
@@ -252,25 +251,27 @@ Browser (React SPA)
 NestJS Backend (:3000)
     |-- AuthModule          JWT auth, guards
     |-- UsersModule         User CRUD, profile
-    |-- WorkspacesModule    Workspace management, membership
-    |-- AgentsModule        Agent CRUD, config file management
-    |-- RuntimeModule       OpenClaw process lifecycle (spawn/kill/restart)
-    |-- ChatModule          Proxy messages to/from OpenClaw HTTP gateway
-    |-- LogsModule          Log ingestion + WebSocket streaming
-    |-- SkillsModule        Skill registry
+    |-- WorkspacesModule    Workspace management (1:1 with user in v1)
+    |-- AgentsModule        Agent CRUD + config management
+    |-- RuntimeModule       Agent status flip (start/stop)
+    |-- ChatModule          Message routing + history
+    |-- LlmModule           LLM provider abstraction (@anthropic-ai/sdk, openai)
+    |-- LogsModule          Activity logging + WebSocket
+    |-- SkillsModule        Skill registry (future)
     |-- ApiKeysModule       Encrypted API key storage per workspace
+    |-- [TelegramModule]    Telegram webhook handler (future)
+    |-- [SlackModule]       Slack Events API handler (future)
     |
-    |-- PostgreSQL (TypeORM)     persistent state
-    |-- Redis                    Bull queue broker + response caching
-    |-- Bull Queue               async jobs: deploy, restart, health checks
-    |
-    v (child_process per agent)
-OpenClaw Process A  (:18801)
-OpenClaw Process B  (:18802)
-OpenClaw Process C  (:18803)
+    |-- PostgreSQL (TypeORM)    agent config, chat history, api keys
+    |-- Redis                   response caching
+    |-- Bull Queue              async jobs (future: scheduled actions)
     |
     v
-LLM APIs + Messaging Channels + Tools
+LLM APIs
+    Anthropic (Claude)
+    OpenAI (GPT)
+    OpenRouter (router)
+    Ollama (local)
 ```
 
 ---
@@ -311,19 +312,23 @@ backend/src/
 │
 ├── runtime/
 │   ├── runtime.module.ts
-│   ├── runtime.service.ts      spawn/kill/restart OpenClaw per agent
-│   │                           manages port pool (18800–19800)
-│   └── runtime.processor.ts   Bull queue processor for deploy jobs
+│   ├── runtime.service.ts      agent status flip (start/stop in DB)
+│   └── (no child processes, no port pool)
+│
+├── llm/
+│   ├── llm.module.ts
+│   ├── llm.service.ts          routes to Anthropic/OpenAI/OpenRouter/Ollama
+│   └── (provider abstraction + error handling)
 │
 ├── chat/
 │   ├── chat.module.ts
 │   ├── chat.controller.ts      POST /agents/:id/chat
-│   ├── chat.service.ts         proxies message to OpenClaw gateway at agent's port
+│   ├── chat.service.ts         calls LLmService inline, saves to DB
 │   └── chat-message.entity.ts  persists chat history
 │
 ├── logs/
 │   ├── logs.module.ts
-│   ├── logs.service.ts         ingests stdout/stderr from child_process
+│   ├── logs.service.ts         persists activity logs to DB
 │   ├── logs.gateway.ts         Socket.io WebSocket gateway for live streaming
 │   └── log.entity.ts
 │
@@ -421,18 +426,11 @@ frontend/src/
 ### Creating and Starting an Agent
 
 ```
-1.  User fills "New Agent" form → POST /api/agents
-2.  AgentsService creates Agent row in DB (status: 'stopped')
-3.  User clicks Start → POST /api/agents/:id/start
-4.  Bull queue job enqueued
-5.  runtime.processor picks up job:
-      a. AgentsService writes config files to disk
-      b. RuntimeService finds a free port (see Section 12)
-      c. Saves port to agent.gatewayPort
-      d. Spawns: spawn('openclaw', ['start', '--port', gatewayPort], { cwd: agentDir })
-      e. Pipes stdout/stderr into LogsService
-6.  Agent status updated to 'running' in DB
-7.  Frontend polls GET /api/agents/:id → shows Running badge
+1. User fills "New Agent" form → POST /api/agents
+2. AgentsService creates Agent row in DB (status: 'stopped', soulMd, modelProvider, modelName)
+3. User clicks Start → POST /api/agents/:id/start
+4. RuntimeService updates agent.status → 'running' in DB (no process spawn)
+5. Frontend polling GET /api/agents/:id → sees Running status
 ```
 
 ### Web Chat with an Agent
@@ -442,25 +440,27 @@ frontend/src/
 2. Frontend loads chat history: GET /api/agents/:id/chat/history
 3. User types a message → POST /api/agents/:id/chat  { message }
 4. ChatService:
-      a. Checks agent status is 'running', has a gatewayPort
-      b. HTTP POST to http://127.0.0.1:{gatewayPort}/message  { content: message }
-      c. Waits for OpenClaw response (synchronous for v1, streaming later)
-      d. Saves ChatMessage row (role: 'user') and ChatMessage row (role: 'assistant')
+      a. Loads agent config from DB (soulMd, modelProvider, modelName)
+      b. Loads last 100 messages from chat_message table
+      c. Calls LLmService.chat() with:
+         - systemPrompt: agent.soulMd
+         - messages: [ ...history, { role: 'user', content: message } ]
+         - provider & model from agent config
+         - apiKeys (decrypted from api_key table)
+      d. LLmService routes to correct SDK (Anthropic/OpenAI/OpenRouter/Ollama)
+      e. Returns reply
+      f. Saves ChatMessage row (role: 'user') and ChatMessage row (role: 'assistant')
 5. Returns { reply: string } to frontend
 6. Frontend appends both messages to the chat window
 ```
 
-### Live Log Streaming
+### Activity Logging
 
 ```
-1. User opens /agents/:id/logs
-2. React connects socket.io: ws://app.com/
-3. Emits 'subscribe-logs' { agentId }
-4. logs.gateway.ts adds socket to room agentId
-5. Each stdout/stderr line from child_process:
-      → LogsService persists to agent_log table
-      → server.to(agentId).emit('log-line', { line, level, ts })
-6. React appends lines in real time
+1. ChatService logs each chat request: workspace, provider, model, keys present
+2. LLmService logs provider/model/message count for debugging
+3. Logs persisted to agent_log table (manual entry, not streaming stdout)
+4. LogsGateway.ts provides WebSocket streaming if needed in future
 ```
 
 ---
@@ -496,28 +496,22 @@ export class Workspace {
 ### Agent
 
 ```typescript
-export type AgentStatus = 'stopped' | 'starting' | 'running' | 'error';
+export type AgentStatus = 'stopped' | 'running' | 'error';
 
 @Entity()
 export class Agent {
   @PrimaryGeneratedColumn('uuid')   id: string;
   @ManyToOne(() => Workspace)       workspace: Workspace;
   @Column()                         name: string;
-  @Column({ default: 'stopped' })   status: AgentStatus;
-  @Column()                         modelProvider: string;  // 'claude' | 'openai' | 'ollama'
+  @Column({ default: 'stopped' })   status: AgentStatus;  // logical state only
+  @Column()                         modelProvider: string;  // 'claude' | 'openai' | 'openrouter' | 'ollama'
   @Column()                         modelName: string;
 
-  // Dynamic port assigned at start time, null when stopped
-  @Column({ nullable: true })       gatewayPort: number | null;
-
-  // Config file contents — DB is source of truth, written to disk at start
-  @Column({ type: 'text', default: '' })  soulMd: string;
-  @Column({ type: 'text', default: '' })  toolsMd: string;
-  @Column({ type: 'text', default: '' })  identityMd: string;
-  @Column({ type: 'text', default: '' })  heartbeatMd: string;
-
-  // memoryMd is NOT stored in DB — read/written directly from disk
-  // (OpenClaw writes to MEMORY.md at runtime)
+  // Config — stored in DB, never written to disk
+  @Column({ type: 'text', default: '' })  soulMd: string;     // system prompt / agent identity
+  @Column({ type: 'text', default: '' })  toolsMd: string;    // tool config (future)
+  @Column({ type: 'text', default: '' })  identityMd: string; // display name, avatar
+  @Column({ type: 'text', default: '' })  heartbeatMd: string;// scheduled tasks (future)
 
   @OneToMany(() => AgentChannel, (c) => c.agent, { cascade: true })
   channels: AgentChannel[];
@@ -740,70 +734,26 @@ export interface SendMessageDto {
 
 ---
 
-## 11. Agent Workspace on Disk
+## 11. API Key Management
 
-Each agent gets its own directory:
-
-```
-/workspaces/
-└── {workspaceId}/
-    └── agents/
-        └── {agentId}/
-            ├── SOUL.md          agent identity and instructions
-            ├── TOOLS.md         which tools are enabled
-            ├── MEMORY.md        persistent memory (written by OpenClaw at runtime)
-            ├── IDENTITY.md      display name, avatar text
-            └── HEARTBEAT.md     scheduled tasks / event loop config
-```
-
-**Source of truth:**
-- DB is source of truth for all config fields EXCEPT `MEMORY.md`
-- On `start`: AgentsService writes DB fields → disk files, then RuntimeService spawns
-- On `stop`: no files are deleted (preserve memory and logs)
-- `MEMORY.md` is owned by OpenClaw at runtime — always read from disk, never cache in DB
-
----
-
-## 12. OpenClaw Port Management
-
-**Problem:** OpenClaw binds to a port at startup. Multiple agents can't share `:18789`.
-
-**Solution:** Dynamic port pool managed by RuntimeService.
-
-- Port range: `18800–19800` (1000 slots = 1000 concurrent agents max per server, sufficient for v1)
-- RuntimeService maintains a `Set<number>` of in-use ports in memory
-- On `start(agentId)`:
-  1. Iterate range to find a port not in the in-use set
-  2. Save port to `agent.gatewayPort` in DB
-  3. Add port to in-use set
-  4. Spawn: `openclaw start --port {port}` in agent's workspace directory
-- On `stop(agentId)`:
-  1. Kill process
-  2. Remove port from in-use set
-  3. Set `agent.gatewayPort = null` in DB
-- On backend restart: query DB for all `status = 'running'` agents to rebuild the in-use set
-  (or mark them all as 'error' and require manual restart — simpler for v1)
-
----
-
-## 13. API Key Management
-
-Users must supply their LLM provider API keys (Anthropic, OpenAI, etc.).
+Users must supply their LLM provider API keys (Anthropic, OpenAI, OpenRouter, etc.) in Settings.
 
 **Storage:**
 - Keys encrypted with AES-256-GCM before storing in the `api_key` table
-- Encryption key comes from `API_KEY_ENCRYPTION_SECRET` env variable
-- On `GET /api/api-keys`: return provider + id only — never return plaintext key
-- On agent start: ApiKeysService decrypts the relevant key, injects it into the spawned process env:
-  ```
-  env: { ...process.env, ANTHROPIC_API_KEY: decryptedKey }
-  ```
+- Encryption key comes from `API_KEY_ENCRYPTION_SECRET` env variable (must be in env, never committed)
+
+**Usage:**
+- On `POST /api/agents/:id/chat`: ChatService calls ApiKeysService.buildEnvForAgent(workspaceId)
+- Returns object: `{ ANTHROPIC_API_KEY: decrypted, OPENAI_API_KEY: decrypted, ... }`
+- Passed to LLmService — never logged or persisted
+
+**GET /api/api-keys:** Returns provider + id only — never expose plaintext key.
 
 **Workspace scope:** One set of API keys per workspace. All agents in a workspace share the same keys.
 
 ---
 
-## 14. Deployment Overview
+## 12. Deployment Overview
 
 ```
 VPS
@@ -812,10 +762,8 @@ VPS
 │                     /api/     → NestJS :3000
 │                     /socket.io → NestJS :3000
 ├── NestJS (PM2)      backend + WebSocket gateway + Bull workers (single process for v1)
-├── Redis             Bull queue broker
-├── PostgreSQL        primary database
-└── OpenClaw processes  spawned as child processes by RuntimeService
-                        each on its own port (18800–19800)
+├── Redis             response caching (Bull queue for future background jobs)
+└── PostgreSQL        agent config, chat history, api keys, activity logs
 ```
 
 **Docker Compose (local dev):**
@@ -851,29 +799,27 @@ services:
 
 ---
 
-## 15. Scope Guard (v1)
+## 13. Scope Guard (v1)
 
 **In scope:**
 - User registration, login, JWT auth
-- Workspace per user (one workspace per user for v1)
-- Agent CRUD + config management via web forms
-- Agent process lifecycle (start/stop/restart)
-- Web chat interface with agents
-- Live log streaming (WebSocket)
-- MEMORY.md view/edit
-- API key management (encrypted storage)
-- Channel config (Telegram/Slack token storage) — stored but channels are configured via OpenClaw
-- Skills registry
+- One workspace per user (v1)
+- Agent CRUD + config management (name, model, SOUL.md)
+- Agent status flip (start/stop in DB)
+- Web chat interface — inline LLM calls, DB-persisted history
+- API key management (encrypted storage + decryption at request time)
+- Support for Anthropic, OpenAI, OpenRouter, Ollama
+- Activity logging to DB
+- Channel configuration storage (AgentChannel table) — structure in place for Telegram/Slack/WhatsApp/Discord
 
 **Out of scope for v1:**
-- VPS provisioning (assume OpenClaw is already installed on the host)
 - Billing / subscriptions
-- Multi-user workspaces (inviting team members)
-- Streaming chat responses (SSE/chunked) — start with request/response
-- Custom LLM provider adapters (pass API key through to OpenClaw)
+- Multi-user workspaces (team members)
+- Streaming chat responses (SSE/chunked)
+- Channel implementation (Telegram/Slack/etc. modules)
+- Long-running agent tasks (scheduled actions, background jobs) — Bull infrastructure ready but not implemented
 - Mobile app
-- Separate Bull worker dyno (single NestJS process is enough for v1)
-- RabbitMQ (Bull + Redis is sufficient; RabbitMQ only if load requires multi-worker pub/sub)
+- Custom tool execution (shell, file system, browser automation)
 
 When in doubt: if an endpoint isn't listed in Section 9, it's not in scope.
 

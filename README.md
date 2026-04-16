@@ -1,21 +1,21 @@
 # ChroniclesAI
 
-Web platform for creating, deploying, and chatting with AI agents. Build custom agents without code, integrate with Telegram/Slack, and manage everything from one dashboard.
+Web platform for creating, managing, and chatting with AI agents. Build custom agents with system prompts (no code), store encrypted API keys, and manage everything from one dashboard.
 
 ## Features
 
-- **Agent Builder** — Create AI agents with custom system prompts and behaviors
-- **Live Chat** — Chat with agents directly in the browser, view real-time execution logs
-- **Channel Integration** — Connect agents to Telegram, Slack, and other platforms
-- **API Keys** — Securely manage credentials for agent integrations
-- **Self-Hosted Runtime** — Powered by [OpenClaw](https://github.com/openinterpreter/openinterpreter), a self-hosted AI agent runtime
-- **Dashboard** — Monitor agent status, logs, and performance
+- **Agent Builder** — Create AI agents with custom SOUL.md (system prompt) and model selection
+- **Web Chat** — Chat with agents directly in the browser
+- **Multi-Model Support** — Claude (Anthropic), GPT (OpenAI), OpenRouter, Ollama
+- **Encrypted API Keys** — Securely store and manage credentials per workspace (AES-256-GCM)
+- **Dashboard** — Monitor agent status and activity
+- **Extensible Architecture** — Built-in hooks for Telegram, Slack, WhatsApp, Discord (channel plugins)
 
 ## Tech Stack
 
 - **Backend:** NestJS + TypeScript, PostgreSQL, Redis, Bull queues
-- **Frontend:** React + TypeScript, Tailwind CSS
-- **Runtime:** OpenClaw (child processes on dynamic ports)
+- **Frontend:** React + Vite, TypeScript, Tailwind v4
+- **LLM:** Inline calls via @anthropic-ai/sdk and OpenAI SDK
 - **Deployment:** Docker, monorepo with pnpm workspaces
 
 ## Quick Start
