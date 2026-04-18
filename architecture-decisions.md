@@ -214,30 +214,41 @@
 
 ---
 
-## ADR-017: Future Channel Architecture (Telegram, Slack, WhatsApp, Discord)
+## ADR-017: Channel Architecture (Telegram, Slack, WhatsApp, Discord)
 
-**Decision:** Channels will be implemented as NestJS modules that listen to webhooks. Each channel module:
+**Decision:** Channels are implemented as NestJS modules that listen to webhooks. Each channel module:
 - Listens to incoming messages (Telegram webhook, Slack Events API, etc.)
 - Routes message to ChatService with agent ID
 - Returns reply back through channel SDK
 
 No child processes, no separate runtime. Agent is stateless from channel perspective.
 
-**Pattern Example (Telegram):**
+**Implementation (v1 — complete):**
+
+Each channel module follows this pattern:
+
 ```
-TelegramModule
-├── telegram.controller.ts   — POST /webhooks/telegram/:token
-├── telegram.service.ts      — sends/receives via Telegram SDK
-└── Wires into ChatService:  POST /api/agents/:id/chat → save to chat_message table
+SlackModule / TelegramModule / DiscordModule / WhatsappModule
+├── [channel].controller.ts     — @Public() webhook endpoint
+├── [channel].service.ts        — SDK integration + message routing
+└── [channel].module.ts         — imports AgentChannel + ChatModule (forwardRef)
 ```
 
-**Flow:**
-1. Telegram webhook → TelegramController
-2. Extract message + chat ID from Telegram payload
-3. Call ChatService.sendMessage(agentId, workspaceId, message)
-4. Receive reply
-5. Send reply back to Telegram via SDK
+**Message Flow:**
+1. Webhook from platform → Controller (marked @Public())
+2. Extract message + identifiers (chat ID, channel ID, user ID, phone number)
+3. Find matching AgentChannel via QueryBuilder (where config->>'fieldName' = :value)
+4. Call ChatService.sendMessage(agentId, workspaceId, message)
+5. Receive reply
+6. Send reply back via platform SDK
 
-**Scope:** v1 stores channel config (token, chat ID) in AgentChannel table but does not implement channel modules yet.
+**Provider-Specific Details:**
+
+- **Slack:** HMAC-SHA256 signature verification, WebClient.chat.postMessage() for replies
+- **Telegram:** Bot token caching, node-telegram-bot-api, bot.sendMessage() for replies
+- **Discord:** Persistent Discord.js client, DM-only listener, user.send() for replies
+- **WhatsApp:** Twilio SDK, Twilio handles form-encoded webhooks, client.messages.create()
+
+**Scope:** All four channels implemented and tested (v1).
 
 ---

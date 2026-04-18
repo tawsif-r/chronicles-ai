@@ -14,6 +14,10 @@ import { LogsModule } from './logs/logs.module';
 import { SkillsModule } from './skills/skills.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { LlmModule } from './llm/llm.module';
+import { SlackModule } from './slack/slack.module';
+import { TelegramModule } from './telegram/telegram.module';
+import { DiscordModule } from './discord/discord.module';
+import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 // Entities
@@ -71,6 +75,10 @@ const ALL_ENTITIES = [
     SkillsModule,
     ApiKeysModule,
     LlmModule,
+    SlackModule,
+    TelegramModule,
+    DiscordModule,
+    WhatsappModule,
   ],
   providers: [
     // Apply JwtAuthGuard globally; routes opt out with @Public()

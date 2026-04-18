@@ -16,7 +16,7 @@
 | Queue        | Bull (BullMQ)           | —                | Background jobs: deploy, restart           |
 | Auth         | JWT (Passport + NestJS) | —                | Stateless auth via access + refresh tokens |
 | WebSocket    | Socket.io               | —                | Live log streaming                         |
-| HTTP Client  | Axios                   | —                | Proxy requests to OpenClaw gateway         |
+| LLM SDKs     | @anthropic-ai/sdk, openai | —             | Direct LLM API calls (inline, no gateway)   |
 
 ---
 
@@ -51,10 +51,11 @@ The developer is proficient in:
 - Familiarity with the TypeScript ecosystem
 - Prisma is a valid alternative if migrations become painful
 
-### Why not Python/Django for backend?
-- OpenClaw is Node.js/TypeScript — using the same runtime means we can import OpenClaw types directly if needed
-- `child_process` is Node-native; Python would need subprocess wrappers
+### Why Node.js + NestJS for backend?
 - Full TypeScript means shared types between backend and frontend with zero drift
+- NestJS ecosystem provides auth, WebSocket, validation, ORM out of the box
+- LLM SDKs (@anthropic-ai/sdk, openai) are JavaScript-native and first-class
+- Easier to integrate channel SDKs (Slack, Telegram, Discord, Twilio) in a single process
 
 ---
 
@@ -87,7 +88,5 @@ JWT_REFRESH_SECRET=<32+ char secret>
 JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 API_KEY_ENCRYPTION_SECRET=<32 char AES key>
-OPENCLAW_PORT_RANGE_START=18800
-OPENCLAW_PORT_RANGE_END=19800
-OPENCLAW_BINARY=openclaw       # path or command name
+NODE_ENV=development
 ```

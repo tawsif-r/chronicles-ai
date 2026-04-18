@@ -1,10 +1,13 @@
 import { apiClient } from './client';
 import type {
   Agent,
+  AgentChannel,
   AgentStatusResponse,
   CreateAgentDto,
+  CreateChannelDto,
   MemoryResponse,
   UpdateAgentDto,
+  UpdateChannelDto,
 } from '@chronicles/shared';
 
 export const agentsApi = {
@@ -26,4 +29,11 @@ export const agentsApi = {
     apiClient.get<MemoryResponse>(`/agents/${id}/memory`).then((r) => r.data),
   setMemory: (id: string, content: string) =>
     apiClient.patch(`/agents/${id}/memory`, { content }),
+
+  addChannel: (id: string, dto: CreateChannelDto) =>
+    apiClient.post<AgentChannel>(`/agents/${id}/channels`, dto).then((r) => r.data),
+  updateChannel: (id: string, channelId: string, dto: UpdateChannelDto) =>
+    apiClient.patch<AgentChannel>(`/agents/${id}/channels/${channelId}`, dto).then((r) => r.data),
+  removeChannel: (id: string, channelId: string) =>
+    apiClient.delete(`/agents/${id}/channels/${channelId}`),
 };
