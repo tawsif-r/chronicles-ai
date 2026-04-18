@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as fs from 'fs/promises';
@@ -22,6 +24,7 @@ export class AgentsService {
     private readonly repo: Repository<Agent>,
     @InjectRepository(AgentChannel)
     private readonly channelRepo: Repository<AgentChannel>,
+    private readonly config: ConfigService,
   ) {}
 
   findAll(workspaceId: string): Promise<Agent[]> {
@@ -110,6 +113,11 @@ export class AgentsService {
     dto: CreateChannelDto,
   ): Promise<AgentChannel> {
     const agent = await this.findOne(agentId, workspaceId);
+
+    if (dto.channelType === 'telegram') {
+      await this.registerTelegramWebhook(dto.config.botToken);
+    }
+
     const channel = this.channelRepo.create({
       agent,
       channelType: dto.channelType,
@@ -117,6 +125,31 @@ export class AgentsService {
       enabled: dto.enabled ?? true,
     });
     return this.channelRepo.save(channel);
+  }
+
+  private async registerTelegramWebhook(botToken: string): Promise<void> {
+    const baseUrl = this.config.get<string>('WEBHOOK_BASE_URL');
+    if (!baseUrl) {
+      throw new BadRequestException(
+        'WEBHOOK_BASE_URL is not set in server config. Add it to your .env file.',
+      );
+    }
+    const webhookUrl = `${baseUrl.replace(/\/$/, '')}/api/webhooks/telegram/${botToken}`;
+    const telegramUrl = `https://api.telegram.org/bot${botToken}/setWebhook?url=${encodeURIComponent(webhookUrl)}`;
+
+    let json: { ok: boolean; description?: string };
+    try {
+      const res = await fetch(telegramUrl);
+      json = await res.json() as { ok: boolean; description?: string };
+    } catch {
+      throw new BadRequestException('Could not reach Telegram API. Check your internet connection.');
+    }
+
+    if (!json.ok) {
+      throw new BadRequestException(
+        `Telegram webhook registration failed: ${json.description ?? 'Unknown error'}`,
+      );
+    }
   }
 
   async updateChannel(
