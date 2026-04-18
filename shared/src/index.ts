@@ -102,6 +102,12 @@ export interface CreateAgentDto {
   toolsMd?: string;
 }
 
+export interface CreateChannelDto {
+  channelType: ChannelType;
+  config: Record<string, string>;
+  enabled?: boolean;
+}
+
 export interface UpdateAgentDto {
   name?: string;
   modelProvider?: ModelProvider;

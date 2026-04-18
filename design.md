@@ -24,14 +24,19 @@
 | Logs (persist + Socket.io stream) | `backend/src/logs/` | Done |
 | API Keys (AES-256-GCM encrypt/decrypt) | `backend/src/api-keys/` | Done |
 | Skills registry | `backend/src/skills/` | Done |
+| Slack channel module (Events API + signature verification) | `backend/src/slack/` | Done |
+| Telegram channel module (webhook + bot token caching) | `backend/src/telegram/` | Done |
+| Discord channel module (persistent client + DM routing) | `backend/src/discord/` | Done |
+| WhatsApp channel module (Twilio + form parsing) | `backend/src/whatsapp/` | Done |
 | Frontend routing + AuthContext | `frontend/src/App.tsx`, `contexts/` | Done |
 | Frontend API client + hooks | `frontend/src/api/`, `hooks/` | Done |
-| All pages (Login→Chat→Logs→Memory) | `frontend/src/pages/` | Done — fully styled with Tailwind v4 |
-| UI components (Sidebar, AgentCard, StatusBadge, Layout) | `frontend/src/components/` | Done — dark zinc + violet accent design system |
+| All pages (Login→Chat→Logs→Memory→Channels) | `frontend/src/pages/` | Done — fully styled with Tailwind v4 |
+| UI components (Sidebar, AgentCard, StatusBadge, Layout, ChannelManager) | `frontend/src/components/` | Done — dark zinc + violet accent design system |
+| Unit tests (services + controllers) | `backend/src/**/*.spec.ts` | Done — 80 tests, 100% pass (see `TESTING.md`) |
 
-**Current state (April 2026):** Full stack functional. Auth, agent CRUD, chat, logs, and API key management all working. Chat calls LLM inline via @anthropic-ai/sdk and OpenAI SDK. Agent start/stop flip status in DB (no child processes). Conversation history persisted to DB. All frontend pages fully styled (Tailwind v4, Inter font, dark minimal design).
+**Current state (April 2026):** Full stack + channels functional. Auth, agent CRUD, chat, logs, API key management, and all four channel modules (Slack, Telegram, Discord, WhatsApp) all working. Chat calls LLM inline via @anthropic-ai/sdk and OpenAI SDK. Agent start/stop flip status in DB (no child processes). Conversation history persisted to DB. Channels route messages through ChatService and reply via provider SDKs. All frontend pages fully styled (Tailwind v4, Inter font, dark minimal design). **Comprehensive unit test suite: 80 tests, 100% passing** (see `TESTING.md`).
 
-**Next:** Implement channel modules (Telegram, Slack, WhatsApp, Discord) as NestJS webhook handlers. See ADR-017.
+**Next:** Production hardening (migrations, env validation, rate limiting) and optional streaming responses (SSE).
 
 ---
 
@@ -110,7 +115,7 @@ Note: the Docker setup mounts source dirs as volumes, so hot-reload works inside
 
 1. [What We Are Building](#1-what-we-are-building)
 2. [User Journey (End-to-End)](#2-user-journey-end-to-end)
-3. [How OpenClaw Works](#3-how-openclaw-works)
+3. [How LLM Service Works](#3-how-llm-service-works)
 4. [System Architecture](#4-system-architecture)
 5. [Backend Module Breakdown](#5-backend-module-breakdown)
 6. [Frontend Structure](#6-frontend-structure)
@@ -118,11 +123,10 @@ Note: the Docker setup mounts source dirs as volumes, so hot-reload works inside
 8. [Database Entities](#8-database-entities)
 9. [API Endpoints](#9-api-endpoints)
 10. [Shared Types](#10-shared-types)
-11. [Agent Workspace on Disk](#11-agent-workspace-on-disk)
-12. [OpenClaw Port Management](#12-openclaw-port-management)
-13. [API Key Management](#13-api-key-management)
-14. [Deployment Overview](#14-deployment-overview)
-15. [Scope Guard (v1)](#15-scope-guard-v1)
+11. [API Key Management](#11-api-key-management)
+12. [Deployment Overview](#12-deployment-overview)
+13. [Channel Configuration Shapes](#13-channel-configuration-shapes)
+14. [Scope Guard (v1)](#14-scope-guard-v1)
 
 ---
 
@@ -140,17 +144,17 @@ A **web platform** where users:
 The backend handles all LLM interactions directly via @anthropic-ai/sdk and OpenAI SDK. No external runtime binary needed.
 
 ```
-[ Browser (React SPA) ]
-         |
-         | REST + WebSocket
-         v
-[ NestJS Backend ]
-         |
-    ┌────┴────┐
-    v         v
-[ LLM APIs ]  [ Messaging Channels (webhooks) ]
- (Anthropic,   Telegram, Slack, WhatsApp,
-  OpenAI,      Discord
+[ Browser (React SPA) ]                        [ Messaging Platforms ]
+         |                                            |
+         | REST + WebSocket                          | Webhooks
+         v                                            v
+[ NestJS Backend ]                            [ Channel Webhooks ]
+         |                                     (Slack, Telegram,
+    ┌────┴────┬───────────┐                    Discord, WhatsApp)
+    v         v           v
+[ LLM APIs ]  [ Channels ] [ Database ]
+ (Anthropic,   (SDKs)      (PostgreSQL)
+  OpenAI,
   OpenRouter,
   Ollama)
 ```
@@ -259,8 +263,10 @@ NestJS Backend (:3000)
     |-- LogsModule          Activity logging + WebSocket
     |-- SkillsModule        Skill registry (future)
     |-- ApiKeysModule       Encrypted API key storage per workspace
-    |-- [TelegramModule]    Telegram webhook handler (future)
-    |-- [SlackModule]       Slack Events API handler (future)
+    |-- SlackModule         Slack Events API webhook handler + signature verification
+    |-- TelegramModule      Telegram webhook handler + bot token caching
+    |-- DiscordModule       Discord persistent client + DM routing
+    |-- WhatsappModule      WhatsApp Twilio webhook handler
     |
     |-- PostgreSQL (TypeORM)    agent config, chat history, api keys
     |-- Redis                   response caching
@@ -338,11 +344,31 @@ backend/src/
 │   ├── skills.service.ts
 │   └── skill.entity.ts
 │
-└── api-keys/
+├── api-keys/
     ├── api-keys.module.ts
     ├── api-keys.controller.ts
     ├── api-keys.service.ts     encrypts/decrypts keys, injects into agent env at start
     └── api-key.entity.ts
+│
+├── slack/
+    ├── slack.module.ts         imports AgentChannel + ChatModule (forwardRef)
+    ├── slack.controller.ts      @Public() POST /webhooks/slack/events
+    └── slack.service.ts         signature verification, message routing, WebClient.chat.postMessage
+│
+├── telegram/
+    ├── telegram.module.ts
+    ├── telegram.controller.ts    @Public() POST /webhooks/telegram/:token
+    └── telegram.service.ts       bot token caching, node-telegram-bot-api integration
+│
+├── discord/
+    ├── discord.module.ts
+    ├── discord.controller.ts     @Public() POST /webhooks/discord/:botToken (init)
+    └── discord.service.ts        persistent Discord.js client, DM channel listener
+│
+└── whatsapp/
+    ├── whatsapp.module.ts
+    ├── whatsapp.controller.ts    @Public() POST /webhooks/whatsapp
+    └── whatsapp.service.ts       Twilio SDK integration, message sending
 ```
 
 **Key NestJS packages:**
@@ -648,10 +674,15 @@ POST   /api/agents/:id/skills              { skillId }  enable skill
 DELETE /api/agents/:id/skills/:sid         disable skill
 
 CHANNELS
-GET    /api/agents/:id/channels
-POST   /api/agents/:id/channels            { channelType, config }
-PATCH  /api/agents/:id/channels/:cid
-DELETE /api/agents/:id/channels/:cid
+GET    /api/agents/:id/channels            list configured channels
+POST   /api/agents/:id/channels            { channelType, config }  add channel
+DELETE /api/agents/:id/channels/:cid       remove channel
+
+WEBHOOKS (Messaging Platforms)
+POST   /webhooks/slack/events              Slack Events API (url_verification + message)
+POST   /webhooks/telegram/:token           Telegram bot webhook
+POST   /webhooks/discord/:botToken         Discord init endpoint
+POST   /webhooks/whatsapp                  WhatsApp (Twilio) webhook
 
 API KEYS
 GET    /api/api-keys                       list keys for workspace (names only, not values)
@@ -755,6 +786,10 @@ Users must supply their LLM provider API keys (Anthropic, OpenAI, OpenRouter, et
 
 ## 12. Deployment Overview
 
+---
+
+## 13. Channel Configuration Shapes (JSONB in AgentChannel.config)
+
 ```
 VPS
 ├── Nginx             reverse proxy:
@@ -799,7 +834,25 @@ services:
 
 ---
 
-## 13. Scope Guard (v1)
+## 13. Channel Configuration Shapes (JSONB in AgentChannel.config)
+
+```typescript
+// Slack
+{ botToken: string, signingSecret: string, slackChannelId: string, teamId: string }
+
+// Telegram
+{ botToken: string, chatId: string }
+
+// Discord
+{ botToken: string, userId: string }
+
+// WhatsApp (Twilio)
+{ accountSid: string, authToken: string, phoneNumber: string }
+```
+
+---
+
+## 14. Scope Guard (v1)
 
 **In scope:**
 - User registration, login, JWT auth
@@ -810,16 +863,16 @@ services:
 - API key management (encrypted storage + decryption at request time)
 - Support for Anthropic, OpenAI, OpenRouter, Ollama
 - Activity logging to DB
-- Channel configuration storage (AgentChannel table) — structure in place for Telegram/Slack/WhatsApp/Discord
+- **Channel implementation:** Slack Events API, Telegram webhooks, Discord DMs, WhatsApp (Twilio) — all four working with message routing through ChatService
 
 **Out of scope for v1:**
 - Billing / subscriptions
 - Multi-user workspaces (team members)
 - Streaming chat responses (SSE/chunked)
-- Channel implementation (Telegram/Slack/etc. modules)
 - Long-running agent tasks (scheduled actions, background jobs) — Bull infrastructure ready but not implemented
 - Mobile app
 - Custom tool execution (shell, file system, browser automation)
+- Channel enable/disable toggle (infrastructure ready, toggle UI future work)
 
 When in doubt: if an endpoint isn't listed in Section 9, it's not in scope.
 

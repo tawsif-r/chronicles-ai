@@ -5,12 +5,41 @@
 ---
 
 ## Current Status
-**Full stack functional.** Backend :3000 · Frontend :5173 · Postgres + Redis in Docker.
-Auth, agent CRUD, inline chat, and API key management all working.
+**Full stack + channels functional.** Backend :3000 · Frontend :5173 · Postgres + Redis in Docker.
+Auth, agent CRUD, inline chat, API key management, and all four channel modules (Slack, Telegram, Discord, WhatsApp) working.
 
 ---
 
-## Recently Completed (Session — April 16 2026)
+## Recently Completed (Session — April 18 2026)
+
+### ✅ Comprehensive Unit Test Suite (80 tests, 100% pass)
+- Jest + ts-jest + @nestjs/testing configured
+- 13 test suites across all backend modules
+- Tests for services, controllers, SDK mocking, query builder mocking
+- Zero real DB connections, zero real HTTP/SDK calls
+- All channel webhooks tested (Slack, Telegram, Discord, WhatsApp)
+- See `TESTING.md` for full test case breakdown
+
+### ✅ Channel Modules (Slack, Telegram, Discord, WhatsApp)
+- SlackModule with signature verification, message routing, reply via WebClient
+- TelegramModule with bot token caching, webhook handler, Telegram SDK integration
+- DiscordModule with persistent Discord.js client, DM channel detection, user lookup
+- WhatsappModule with Twilio SDK, form-encoded webhook parsing, message sending
+- AgentChannel CRUD endpoints: POST/DELETE /api/agents/:id/channels
+- Frontend ChannelManager component with dynamic form fields per channel type
+- Webhook routes marked @Public() for Slack/Telegram/Discord/WhatsApp to bypass JWT
+
+### ✅ Type Sharing + Entity Updates
+- CreateChannelDto exported from shared types
+- Agent entity marked eager-load of channels relation
+- AgentChannel queries use leftJoinAndSelect for workspace access in services
+
+### ✅ Environment Setup
+- main.ts enables rawBody: true for Slack signature verification
+- ChatModule exports ChatService for injection in channel modules
+- All channel modules registered in app.module.ts
+
+## Previously Completed (Session — April 16 2026)
 
 ### ✅ Inline LLM Architecture (replaced OpenClaw child processes)
 - Removed OpenClaw package from monorepo
@@ -44,38 +73,26 @@ Auth, agent CRUD, inline chat, and API key management all working.
 
 ---
 
-## Next Tasks (v1.1 → v1.2)
+## Next Tasks (v1.2 → v1.3)
 
-### 🔲 Implement Telegram channel module
-- TelegramModule listening to webhook at POST /webhooks/telegram/:token
-- TelegramService sends/receives via telegraf or node-telegram-bot-api
-- Routes messages to ChatService.sendMessage()
-- Persist channel config in AgentChannel table (token, chat ID mapping)
-
-### 🔲 Implement Slack channel module
-- SlackModule listening to Slack Events API (message event)
-- SlackService sends/receives via @slack/bolt
-- Routes messages to ChatService.sendMessage()
-- Persist channel config (team ID, bot token, channel ID)
-
-### 🔲 Implement WhatsApp channel module
-- WhatsappModule listening to webhook (Twilio or Meta Business API)
-- WhatsappService sends/receives via twilio or whatsapp-api
-- Routes messages to ChatService.sendMessage()
-
-### 🔲 Implement Discord channel module
-- DiscordModule using discord.js
-- Routes messages to ChatService.sendMessage()
-
-### 🔲 Production hardening
+### 🔲 Production Hardening
 - TypeORM: generate migration, set `synchronize: false`
 - Environment checklist: all secrets in env, no defaults
 - PM2 config for backend + graceful shutdown
 - Database backup strategy
+- Rate limiting on chat and webhook endpoints
+- Channel webhook secret validation hardening
 
-### 🔲 Streaming chat responses (optional for v1.2)
+### 🔲 Streaming Chat Responses (optional for v1.2)
 - Switch ChatController from request/response to SSE (Server-Sent Events)
 - Frontend switches to stream consumption instead of single response
+- Allow real-time message streaming from LLMs that support it
+
+### 🔲 Channel Features + Polish
+- Channel enable/disable toggle (UI + backend logic)
+- Multi-channel support per agent (route to multiple channels from single chat)
+- Channel connection verification (test webhooks before saving)
+- Proper error logging for failed channel deliveries
 
 ---
 

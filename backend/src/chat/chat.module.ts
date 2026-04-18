@@ -11,5 +11,6 @@ import { LlmModule } from '../llm/llm.module';
   imports: [TypeOrmModule.forFeature([ChatMessage]), AgentsModule, ApiKeysModule, LlmModule],
   controllers: [ChatController],
   providers: [ChatService],
+  exports: [ChatService],
 })
 export class ChatModule {}

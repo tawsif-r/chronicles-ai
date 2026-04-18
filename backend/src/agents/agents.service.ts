@@ -8,15 +8,19 @@ import { Repository } from 'typeorm';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Agent } from './agent.entity';
+import { AgentChannel } from './agent-channel.entity';
 import { Workspace } from '../workspaces/workspace.entity';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
+import { CreateChannelDto } from './dto/create-channel.dto';
 
 @Injectable()
 export class AgentsService {
   constructor(
     @InjectRepository(Agent)
     private readonly repo: Repository<Agent>,
+    @InjectRepository(AgentChannel)
+    private readonly channelRepo: Repository<AgentChannel>,
   ) {}
 
   findAll(workspaceId: string): Promise<Agent[]> {
@@ -97,6 +101,30 @@ export class AgentsService {
     gatewayPort: number | null = null,
   ): Promise<void> {
     await this.repo.update(id, { status, gatewayPort });
+  }
+
+  async addChannel(
+    agentId: string,
+    workspaceId: string,
+    dto: CreateChannelDto,
+  ): Promise<AgentChannel> {
+    const agent = await this.findOne(agentId, workspaceId);
+    const channel = this.channelRepo.create({
+      agent,
+      channelType: dto.channelType,
+      config: dto.config,
+      enabled: dto.enabled ?? true,
+    });
+    return this.channelRepo.save(channel);
+  }
+
+  async removeChannel(
+    agentId: string,
+    workspaceId: string,
+    channelId: string,
+  ): Promise<void> {
+    await this.findOne(agentId, workspaceId);
+    await this.channelRepo.delete({ id: channelId, agent: { id: agentId } });
   }
 
   /** Guard: throw if agent does not belong to workspace (IDOR prevention). */

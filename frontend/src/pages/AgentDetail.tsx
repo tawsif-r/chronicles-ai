@@ -3,15 +3,17 @@ import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, MessageSquare, Activity, Brain, Play, Square, Save } from 'lucide-react';
 import { useAgent, useStartAgent, useStopAgent, useUpdateAgent } from '../hooks/useAgents';
 import StatusBadge from '../components/StatusBadge';
+import ChannelManager from '../components/ChannelManager';
 
-type Tab = 'soul' | 'tools' | 'identity' | 'heartbeat';
+type Tab = 'soul' | 'tools' | 'identity' | 'heartbeat' | 'channels';
 const tabs: { id: Tab; label: string }[] = [
   { id: 'soul', label: 'SOUL.md' },
   { id: 'tools', label: 'TOOLS.md' },
   { id: 'identity', label: 'IDENTITY.md' },
   { id: 'heartbeat', label: 'HEARTBEAT.md' },
+  { id: 'channels', label: 'Channels' },
 ];
-const fieldMap: Record<Tab, 'soulMd' | 'toolsMd' | 'identityMd' | 'heartbeatMd'> = {
+const fieldMap: Record<string, 'soulMd' | 'toolsMd' | 'identityMd' | 'heartbeatMd'> = {
   soul: 'soulMd', tools: 'toolsMd', identity: 'identityMd', heartbeat: 'heartbeatMd',
 };
 
@@ -35,8 +37,8 @@ export default function AgentDetail() {
   }
 
   const field = fieldMap[activeTab];
-  const value = draft[field] ?? agent[field];
-  const isDirty = field in draft && draft[field] !== agent[field];
+  const value = field ? (draft[field] ?? agent[field]) : '';
+  const isDirty = !!field && field in draft && draft[field] !== agent[field];
 
   async function handleSave() {
     await update.mutateAsync({ [field]: value });
@@ -95,15 +97,19 @@ export default function AgentDetail() {
         ))}
       </div>
 
-      {/* Editor */}
-      <div className="flex-1 relative overflow-hidden">
-        <textarea
-          value={value}
-          onChange={(e) => setDraft((d) => ({ ...d, [field]: e.target.value }))}
-          className="absolute inset-0 w-full h-full p-6 lg:p-8 bg-transparent text-sm text-gray-800 dark:text-zinc-300 font-mono leading-relaxed resize-none focus:outline-none placeholder-gray-300 dark:placeholder-zinc-700"
-          placeholder={`# ${activeTab.toUpperCase()}.md\n\n...`}
-          spellCheck={false}
-        />
+      {/* Editor / Channel Manager */}
+      <div className="flex-1 relative overflow-hidden overflow-y-auto">
+        {activeTab === 'channels' ? (
+          <ChannelManager agentId={id!} channels={agent.channels} />
+        ) : (
+          <textarea
+            value={value}
+            onChange={(e) => setDraft((d) => ({ ...d, [field!]: e.target.value }))}
+            className="absolute inset-0 w-full h-full p-6 lg:p-8 bg-transparent text-sm text-gray-800 dark:text-zinc-300 font-mono leading-relaxed resize-none focus:outline-none placeholder-gray-300 dark:placeholder-zinc-700"
+            placeholder={`# ${activeTab.toUpperCase()}.md\n\n...`}
+            spellCheck={false}
+          />
+        )}
       </div>
 
       {/* Save bar */}

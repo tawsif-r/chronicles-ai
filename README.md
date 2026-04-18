@@ -58,10 +58,11 @@ See `design.md` for full setup, architecture, and module overview.
 
 ## Project Status
 
-- ✅ Backend modules (Auth, Users, Agents, Chat, Logs, API Keys)
-- ✅ Frontend pages (Login, Dashboard, Chat, Logs, Memory)
+- ✅ Backend modules (Auth, Users, Agents, Chat, Logs, API Keys, Slack, Telegram, Discord, WhatsApp)
+- ✅ Frontend pages (Login, Dashboard, Chat, Logs, Memory, Channel Management)
+- ✅ Channel modules (Slack Events API, Telegram webhooks, Discord DMs, WhatsApp Twilio)
 - ✅ Styling (Tailwind v4, dark minimal design)
-- 🔄 OpenClaw gateway integration in progress
+- 🔄 Production hardening and streaming responses
 
 ## License
 
