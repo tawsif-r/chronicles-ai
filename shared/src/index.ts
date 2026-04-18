@@ -108,6 +108,11 @@ export interface CreateChannelDto {
   enabled?: boolean;
 }
 
+export interface UpdateChannelDto {
+  config?: Record<string, string>;
+  enabled?: boolean;
+}
+
 export interface UpdateAgentDto {
   name?: string;
   modelProvider?: ModelProvider;

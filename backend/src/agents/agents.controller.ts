@@ -15,6 +15,7 @@ import { RuntimeService } from '../runtime/runtime.service';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { CreateChannelDto } from './dto/create-channel.dto';
+import { UpdateChannelDto } from './dto/update-channel.dto';
 import type { RequestUser } from '../auth/jwt.strategy';
 
 @Controller('agents')
@@ -87,6 +88,17 @@ export class AgentsController {
   ) {
     const { workspaceId } = req.user as RequestUser;
     return this.agentsService.addChannel(id, workspaceId, dto);
+  }
+
+  @Patch(':id/channels/:channelId')
+  updateChannel(
+    @Param('id') id: string,
+    @Param('channelId') channelId: string,
+    @Body() dto: UpdateChannelDto,
+    @Req() req: Request,
+  ) {
+    const { workspaceId } = req.user as RequestUser;
+    return this.agentsService.updateChannel(id, workspaceId, channelId, dto);
   }
 
   @Delete(':id/channels/:channelId')

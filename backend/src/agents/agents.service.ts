@@ -13,6 +13,7 @@ import { Workspace } from '../workspaces/workspace.entity';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { CreateChannelDto } from './dto/create-channel.dto';
+import { UpdateChannelDto } from './dto/update-channel.dto';
 
 @Injectable()
 export class AgentsService {
@@ -115,6 +116,20 @@ export class AgentsService {
       config: dto.config,
       enabled: dto.enabled ?? true,
     });
+    return this.channelRepo.save(channel);
+  }
+
+  async updateChannel(
+    agentId: string,
+    workspaceId: string,
+    channelId: string,
+    dto: UpdateChannelDto,
+  ): Promise<AgentChannel> {
+    await this.findOne(agentId, workspaceId);
+    const channel = await this.channelRepo.findOneBy({ id: channelId, agent: { id: agentId } });
+    if (!channel) throw new NotFoundException('Channel not found');
+    if (dto.config !== undefined) channel.config = dto.config;
+    if (dto.enabled !== undefined) channel.enabled = dto.enabled;
     return this.channelRepo.save(channel);
   }
 

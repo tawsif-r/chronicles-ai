@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsApi } from '../api/agents';
-import type { CreateAgentDto, CreateChannelDto, UpdateAgentDto } from '@chronicles/shared';
+import type { CreateAgentDto, CreateChannelDto, UpdateAgentDto, UpdateChannelDto } from '@chronicles/shared';
 
 export function useAgents() {
   return useQuery({ queryKey: ['agents'], queryFn: agentsApi.list });
@@ -59,5 +59,22 @@ export function useRemoveChannel(agentId: string) {
   return useMutation({
     mutationFn: (channelId: string) => agentsApi.removeChannel(agentId, channelId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['agents', agentId] }),
+  });
+}
+
+export function useUpdateChannel(agentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ channelId, dto }: { channelId: string; dto: UpdateChannelDto }) =>
+      agentsApi.updateChannel(agentId, channelId, dto),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agents', agentId] }),
+  });
+}
+
+export function useDeleteAgent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => agentsApi.remove(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agents'] }),
   });
 }
