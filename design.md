@@ -24,6 +24,8 @@
 | Logs (persist + Socket.io stream) | `backend/src/logs/` | Done |
 | API Keys (AES-256-GCM encrypt/decrypt) | `backend/src/api-keys/` | Done |
 | Skills registry | `backend/src/skills/` | Done |
+| Billing (plans, usage tracking, message limits) | `backend/src/billing/` | Done — FREE/PRO/MAX tiers, Redis message counting, PlanLimitGuard |
+| Swagger / OpenAPI docs | `backend/src/main.ts`, `nest-cli.json` | Done — accessible at `/docs`, JWT auth support, all endpoints documented |
 | Slack channel module (Events API + signature verification) | `backend/src/slack/` | Done |
 | Telegram channel module (webhook + bot token caching) | `backend/src/telegram/` | Done |
 | Discord channel module (persistent client + DM routing) | `backend/src/discord/` | Done |
@@ -38,9 +40,11 @@
 | Delete agent | `frontend/src/components/AgentCard.tsx` | Done — confirm dialog + delete button |
 | Auto-webhook registration | `backend/src/agents/agents.service.ts` | Done — Telegram webhook registered on channel creation |
 
-**Current state (April 2026):** Full stack + channels functional. Auth, agent CRUD, chat, logs, API key management, and all four channel modules (Slack, Telegram, Discord, WhatsApp) all working. Chat calls LLM inline via @anthropic-ai/sdk and OpenAI SDK. Agent start/stop flip status in DB (no child processes). Conversation history persisted to DB. Channels route messages through ChatService and reply via provider SDKs. All frontend pages fully styled (Tailwind v4, Inter font, dark minimal design). **Comprehensive unit test suite: 80 tests, 100% passing** (see `TESTING.md`). **Channel management**: edit existing channels, delete agents, auto-webhook registration on Telegram channel creation, embedded setup guides with code snippets for all channel types.
+**Current state (April 19 2026):** Full stack + channels + billing + Swagger fully functional. Auth, agent CRUD, chat, logs, API key management, and all four channel modules (Slack, Telegram, Discord, WhatsApp) all working. Chat calls LLM inline via @anthropic-ai/sdk and OpenAI SDK. Agent start/stop flip status in DB (no child processes). Conversation history persisted to DB. Channels route messages through ChatService and reply via provider SDKs. All frontend pages fully styled (Tailwind v4, Inter font, dark minimal design). **Comprehensive unit test suite: 80 tests, 100% passing** (see `TESTING.md`). **Channel management**: edit existing channels, delete agents, auto-webhook registration on Telegram channel creation, embedded setup guides with code snippets for all channel types. **Billing system**: FREE/PRO/MAX plans seeded on startup, per-workspace message counting via Redis, route-level PlanLimitGuard with @PlanLimit() decorator. **Swagger API docs**: all 40+ endpoints documented with schemas, auto-generated from class-validator decorators, JWT auth support.
 
-**Next:** Production hardening (migrations, env validation, rate limiting) and optional streaming responses (SSE).
+**Tooling:** code-review-graph dependency analysis integrated — 541-node call graph queryable via SQLite for cross-module task planning.
+
+**Next:** Production hardening (migrations, env validation, rate limiting), extend auto-webhook registration to Slack/Discord/WhatsApp, and optional streaming responses (SSE).
 
 ---
 

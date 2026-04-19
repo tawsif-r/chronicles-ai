@@ -6,7 +6,35 @@
 
 ## Current Status
 **Full stack + channels functional.** Backend :3000 · Frontend :5173 · Postgres + Redis in Docker.
-Auth, agent CRUD, inline chat, API key management, and all four channel modules (Slack, Telegram, Discord, WhatsApp) working.
+Auth, agent CRUD, inline chat, API key management, all four channel modules, **billing system**, **Swagger API docs**, and **code-review-graph dependency analysis** all working.
+
+---
+
+## Recently Completed (Session — April 19 2026)
+
+### ✅ Fixed Login Bug + Subscription Schema
+- **Root cause:** `WorkspacesService.createForUser` created workspace but never set `workspaceId` FK back on users table
+- **Fix:** Injected UserRepository, saved user.workspace after creation. All 8 existing users backfilled via SQL UPDATE
+- **Subscription/Payment entities:** Fixed TypeORM `externalId` field — added explicit `type: 'varchar'` (was rejecting `string | null` without type)
+
+### ✅ Fixed Dark Mode Scrollbar
+- Dark mode scrollbar track showing as nearly-black line (transparent track over zinc-950 body)
+- **Fix:** Set explicit `background: #18181b` (zinc-900) for dark ::-webkit-scrollbar-track
+
+### ✅ Swagger / OpenAPI Documentation
+- Installed `@nestjs/swagger` v11 + enabled CLI plugin in nest-cli.json
+- Configured Swagger in main.ts with JWT bearer auth, accessible at `http://localhost:3000/docs`
+- Added `@ApiTags` to all 10 controllers (auth, agents, chat, billing, api-keys, skills, webhooks)
+- Added `@ApiBearerAuth()` to protected endpoints
+- CLI plugin auto-generates DTO schemas from class-validator decorators — zero manual @ApiProperty needed
+- All 40+ endpoints now fully documented with parameters, request/response schemas, auth requirements
+
+### ✅ code-review-graph Integration
+- Installed `code-review-graph` via `pipx install`
+- Built dependency graph: 541 nodes (222 functions, 148 tests, 108 files, 63 classes), 3,512 edges
+- Queryable SQLite DB at `.code-review-graph/graph.db`
+- Ready to use on cross-module tasks: query call graph, impact radius, find all callers/tests before reading files
+- Confirmed it saves time on dependency queries vs. file-by-file exploration
 
 ---
 
@@ -103,7 +131,7 @@ Auth, agent CRUD, inline chat, API key management, and all four channel modules 
 
 ---
 
-## Next Tasks (v1.2 → v1.3)
+## Next Tasks (v1.3 → v1.4)
 
 ### 🔲 Extend Auto-Webhook Registration
 - Slack: auto-register Event Subscriptions URL on channel creation
