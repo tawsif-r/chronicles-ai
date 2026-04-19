@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AgentsService } from './agents.service';
@@ -17,6 +18,8 @@ import { UpdateAgentDto } from './dto/update-agent.dto';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 import type { RequestUser } from '../auth/jwt.strategy';
+import { PlanLimit } from '../billing/plan-limit.decorator';
+import { PlanLimitGuard } from '../billing/plan-limit.guard';
 
 @Controller('agents')
 export class AgentsController {
@@ -33,6 +36,8 @@ export class AgentsController {
   }
 
   @Post()
+  @UseGuards(PlanLimitGuard)
+  @PlanLimit('agents')
   async create(@Body() dto: CreateAgentDto, @Req() req: Request) {
     const { workspaceId } = req.user as RequestUser;
     const workspace = await this.workspacesService.findById(workspaceId);
@@ -81,6 +86,8 @@ export class AgentsController {
   }
 
   @Post(':id/channels')
+  @UseGuards(PlanLimitGuard)
+  @PlanLimit('channels')
   addChannel(
     @Param('id') id: string,
     @Body() dto: CreateChannelDto,
