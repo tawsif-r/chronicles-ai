@@ -44,6 +44,42 @@
 
 **Tooling:** code-review-graph dependency analysis integrated — 541-node call graph queryable via SQLite for cross-module task planning.
 
+### Code Exploration via code-review-graph
+
+Instead of file-by-file reading on cross-module tasks, query the dependency graph directly:
+
+```bash
+# On any new cross-module task:
+sqlite3 /home/tawsif/Documents/chroniclesAi/.code-review-graph/graph.db
+
+# Find all callers of a function (impact radius)
+SELECT DISTINCT source_qualified FROM edges
+WHERE target_qualified LIKE '%functionName%' AND kind='CALLS';
+
+# Find all calls made by a service
+SELECT DISTINCT target_qualified FROM edges
+WHERE source_qualified LIKE '%ServiceName%' AND kind IN ('CALLS','IMPORTS_FROM');
+
+# Find all tests covering a function
+SELECT DISTINCT source_qualified FROM edges
+WHERE target_qualified LIKE '%targetFunction%' AND kind='TESTED_BY';
+
+# Find file + line number of a class
+SELECT file_path, line_start FROM nodes WHERE name='ClassName';
+
+# List all classes in a module
+SELECT name, file_path FROM nodes WHERE kind='Class' AND file_path LIKE '%module_name%';
+```
+
+**When to use:** Cross-module changes, impact analysis, finding dependencies. Skip for single-file edits.
+
+**To update graph after code changes:**
+```bash
+code-review-graph update
+```
+
+See `/home/tawsif/.claude/projects/-home-tawsif-Documents-chroniclesAi/memory/reference_code_review_graph.md` for more queries and usage patterns.
+
 **Next:** Production hardening (migrations, env validation, rate limiting), extend auto-webhook registration to Slack/Discord/WhatsApp, and optional streaming responses (SSE).
 
 ---
