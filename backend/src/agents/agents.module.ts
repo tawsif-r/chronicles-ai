@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Agent } from './agent.entity';
 import { AgentChannel } from './agent-channel.entity';
@@ -13,7 +13,7 @@ import { DiscordModule } from '../discord/discord.module';
     TypeOrmModule.forFeature([Agent, AgentChannel]),
     WorkspacesModule,
     RuntimeModule,
-    DiscordModule,
+    forwardRef(() => DiscordModule),
   ],
   controllers: [AgentsController],
   providers: [AgentsService],

@@ -1,8 +1,10 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -26,6 +28,7 @@ export class AgentsService {
     @InjectRepository(AgentChannel)
     private readonly channelRepo: Repository<AgentChannel>,
     private readonly config: ConfigService,
+    @Inject(forwardRef(() => DiscordService))
     private readonly discordService: DiscordService,
   ) {}
 
