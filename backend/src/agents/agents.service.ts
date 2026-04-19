@@ -16,6 +16,7 @@ import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
+import { DiscordService } from '../discord/discord.service';
 
 @Injectable()
 export class AgentsService {
@@ -25,6 +26,7 @@ export class AgentsService {
     @InjectRepository(AgentChannel)
     private readonly channelRepo: Repository<AgentChannel>,
     private readonly config: ConfigService,
+    private readonly discordService: DiscordService,
   ) {}
 
   findAll(workspaceId: string): Promise<Agent[]> {
@@ -116,6 +118,12 @@ export class AgentsService {
 
     if (dto.channelType === 'telegram') {
       await this.registerTelegramWebhook(dto.config.botToken);
+    } else if (dto.channelType === 'slack') {
+      await this.registerSlackWebhook(dto.config.botToken);
+    } else if (dto.channelType === 'discord') {
+      await this.registerDiscordBot(dto.config.botToken);
+    } else if (dto.channelType === 'whatsapp') {
+      await this.registerWhatsappWebhook(dto.config as Record<string, string>);
     }
 
     const channel = this.channelRepo.create({
@@ -149,6 +157,98 @@ export class AgentsService {
       throw new BadRequestException(
         `Telegram webhook registration failed: ${json.description ?? 'Unknown error'}`,
       );
+    }
+  }
+
+  private async registerSlackWebhook(botToken: string): Promise<void> {
+    let json: { ok: boolean; error?: string };
+    try {
+      const res = await fetch('https://slack.com/api/auth.test', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${botToken}` },
+      });
+      json = await res.json() as { ok: boolean; error?: string };
+    } catch {
+      throw new BadRequestException('Could not reach Slack API. Check your internet connection.');
+    }
+
+    if (!json.ok) {
+      throw new BadRequestException(`Slack token validation failed: ${json.error ?? 'Unknown error'}`);
+    }
+  }
+
+  private async registerDiscordBot(botToken: string): Promise<void> {
+    let res: Response;
+    try {
+      res = await fetch('https://discord.com/api/v10/users/@me', {
+        headers: { Authorization: `Bot ${botToken}` },
+      });
+    } catch {
+      throw new BadRequestException('Could not reach Discord API. Check your internet connection.');
+    }
+
+    if (!res.ok) {
+      throw new BadRequestException('Invalid Discord bot token');
+    }
+
+    await this.discordService.init(botToken);
+  }
+
+  private async registerWhatsappWebhook(config: Record<string, string>): Promise<void> {
+    const baseUrl = this.config.get<string>('WEBHOOK_BASE_URL');
+    if (!baseUrl) {
+      throw new BadRequestException(
+        'WEBHOOK_BASE_URL is not set in server config. Add it to your .env file.',
+      );
+    }
+
+    const { accountSid, authToken, phoneNumber } = config;
+    if (!accountSid || !authToken || !phoneNumber) {
+      throw new BadRequestException('Missing Twilio credentials: accountSid, authToken, phoneNumber');
+    }
+
+    const basicAuth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+    const listUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(phoneNumber)}`;
+
+    let listRes: Response;
+    try {
+      listRes = await fetch(listUrl, {
+        headers: { Authorization: `Basic ${basicAuth}` },
+      });
+    } catch {
+      throw new BadRequestException('Could not reach Twilio API. Check your internet connection.');
+    }
+
+    if (!listRes.ok) {
+      throw new BadRequestException('Twilio authentication failed. Check accountSid and authToken.');
+    }
+
+    const listJson = await listRes.json() as { incoming_phone_numbers?: Array<{ sid: string }> };
+    const phoneNumbers = listJson.incoming_phone_numbers ?? [];
+    if (phoneNumbers.length === 0) {
+      throw new BadRequestException(`Phone number ${phoneNumber} not found in Twilio account`);
+    }
+
+    const phoneNumberSid = phoneNumbers[0].sid;
+    const webhookUrl = `${baseUrl.replace(/\/$/, '')}/api/webhooks/whatsapp`;
+    const updateUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers/${phoneNumberSid}.json`;
+
+    let updateRes: Response;
+    try {
+      updateRes = await fetch(updateUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${basicAuth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `SmsUrl=${encodeURIComponent(webhookUrl)}`,
+      });
+    } catch {
+      throw new BadRequestException('Could not reach Twilio API. Check your internet connection.');
+    }
+
+    if (!updateRes.ok) {
+      throw new BadRequestException('Failed to register webhook URL with Twilio');
     }
   }
 

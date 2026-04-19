@@ -1,10 +1,12 @@
 import { Test } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AgentsService } from './agents.service';
 import { Agent } from './agent.entity';
 import { AgentChannel } from './agent-channel.entity';
 import { mockRepo } from '../test-utils/mock-repo';
+import { DiscordService } from '../discord/discord.service';
 
 describe('AgentsService', () => {
   let service: AgentsService;
@@ -37,11 +39,17 @@ describe('AgentsService', () => {
     agentRepo = mockRepo();
     channelRepo = mockRepo();
 
+    const mockDiscordService = {
+      init: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module = await Test.createTestingModule({
+      imports: [ConfigModule.forRoot({ isGlobal: true })],
       providers: [
         AgentsService,
         { provide: getRepositoryToken(Agent), useValue: agentRepo },
         { provide: getRepositoryToken(AgentChannel), useValue: channelRepo },
+        { provide: DiscordService, useValue: mockDiscordService },
       ],
     }).compile();
 
@@ -145,6 +153,14 @@ describe('AgentsService', () => {
   // ── addChannel ─────────────────────────────────────────────────────────────
 
   describe('addChannel()', () => {
+    beforeEach(() => {
+      global.fetch = jest.fn();
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it('checks ownership then saves channel', async () => {
       const agent = makeAgent();
       agentRepo.findOne.mockResolvedValue(agent);
@@ -152,6 +168,11 @@ describe('AgentsService', () => {
       const channel = { id: 'ch-1', agent, channelType: 'slack', config: {}, enabled: true } as any;
       channelRepo.create.mockReturnValue(channel);
       channelRepo.save.mockResolvedValue(channel);
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ ok: true }),
+      });
 
       const dto = { channelType: 'slack' as const, config: { botToken: 'xoxb-test' } };
       const result = await service.addChannel(agentId, workspaceId, dto);
