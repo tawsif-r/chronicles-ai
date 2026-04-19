@@ -18,6 +18,7 @@ import { SlackModule } from './slack/slack.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { DiscordModule } from './discord/discord.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
+import { BillingModule } from './billing/billing.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 // Entities
@@ -30,6 +31,9 @@ import { AgentLog } from './logs/log.entity';
 import { Skill } from './skills/skill.entity';
 import { AgentSkill } from './skills/agent-skill.entity';
 import { ApiKey } from './api-keys/api-key.entity';
+import { Plan } from './billing/plan.entity';
+import { Subscription } from './billing/subscription.entity';
+import { Payment } from './billing/payment.entity';
 
 const ALL_ENTITIES = [
   User,
@@ -41,6 +45,9 @@ const ALL_ENTITIES = [
   Skill,
   AgentSkill,
   ApiKey,
+  Plan,
+  Subscription,
+  Payment,
 ];
 
 @Module({
@@ -79,6 +86,7 @@ const ALL_ENTITIES = [
     TelegramModule,
     DiscordModule,
     WhatsappModule,
+    BillingModule,
   ],
   providers: [
     // Apply JwtAuthGuard globally; routes opt out with @Public()

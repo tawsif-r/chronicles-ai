@@ -6,9 +6,10 @@ import { ChatController } from './chat.controller';
 import { AgentsModule } from '../agents/agents.module';
 import { ApiKeysModule } from '../api-keys/api-keys.module';
 import { LlmModule } from '../llm/llm.module';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ChatMessage]), forwardRef(() => AgentsModule), ApiKeysModule, LlmModule],
+  imports: [TypeOrmModule.forFeature([ChatMessage]), forwardRef(() => AgentsModule), ApiKeysModule, LlmModule, BillingModule],
   controllers: [ChatController],
   providers: [ChatService],
   exports: [ChatService],

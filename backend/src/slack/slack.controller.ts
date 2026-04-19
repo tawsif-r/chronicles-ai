@@ -1,5 +1,6 @@
 import { Controller, Post, Req, Res } from '@nestjs/common';
 import { RawBodyRequest } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { Public } from '../auth/public.decorator';
 import { SlackService } from './slack.service';
@@ -20,6 +21,7 @@ interface SlackEventPayload {
   event?: SlackMessageEvent;
 }
 
+@ApiTags('webhooks')
 @Public()
 @Controller('webhooks/slack')
 export class SlackController {

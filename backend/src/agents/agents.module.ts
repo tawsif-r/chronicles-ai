@@ -7,6 +7,7 @@ import { AgentsController } from './agents.controller';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { RuntimeModule } from '../runtime/runtime.module';
 import { DiscordModule } from '../discord/discord.module';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { DiscordModule } from '../discord/discord.module';
     WorkspacesModule,
     RuntimeModule,
     forwardRef(() => DiscordModule),
+    BillingModule,
   ],
   controllers: [AgentsController],
   providers: [AgentsService],

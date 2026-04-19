@@ -11,6 +11,8 @@ export class WorkspacesService {
   constructor(
     @InjectRepository(Workspace)
     private readonly repo: Repository<Workspace>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     private readonly cfg: ConfigService,
   ) {}
 
@@ -21,7 +23,10 @@ export class WorkspacesService {
       this.repo.create({ name: `${user.email}'s workspace`, diskPath: '' }),
     );
     ws.diskPath = path.join(basePath, ws.id);
-    return this.repo.save(ws);
+    const savedWs = await this.repo.save(ws);
+    // Link workspace FK back to user row
+    await this.userRepo.save({ id: user.id, workspace: savedWs });
+    return savedWs;
   }
 
   findByUserId(userId: string): Promise<Workspace> {

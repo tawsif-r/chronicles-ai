@@ -5,6 +5,7 @@ import { ChatMessage } from './chat-message.entity';
 import { AgentsService } from '../agents/agents.service';
 import { ApiKeysService } from '../api-keys/api-keys.service';
 import { LlmService } from '../llm/llm.service';
+import { BillingService } from '../billing/billing.service';
 
 @Injectable()
 export class ChatService {
@@ -17,6 +18,7 @@ export class ChatService {
     private readonly agentsService: AgentsService,
     private readonly apiKeysService: ApiKeysService,
     private readonly llmService: LlmService,
+    private readonly billingService: BillingService,
   ) {}
 
   async sendMessage(
@@ -38,6 +40,8 @@ export class ChatService {
       { role: 'user' as const, content: message },
     ];
 
+    await this.billingService.checkMessageLimit(workspaceId);
+
     // Get decrypted API keys for this workspace
     const apiKeys = await this.apiKeysService.buildEnvForAgent(workspaceId);
     this.logger.log(
@@ -58,6 +62,8 @@ export class ChatService {
       this.msgRepo.create({ agent, role: 'user', content: message }),
       this.msgRepo.create({ agent, role: 'assistant', content: reply }),
     ]);
+
+    await this.billingService.incrementMessageCount(workspaceId);
 
     return reply;
   }

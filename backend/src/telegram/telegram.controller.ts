@@ -1,4 +1,5 @@
 import { Body, Controller, Post } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/public.decorator';
 import { TelegramService } from './telegram.service';
 
@@ -11,6 +12,7 @@ interface TelegramUpdate {
   };
 }
 
+@ApiTags('webhooks')
 @Public()
 @Controller('webhooks/telegram')
 export class TelegramController {
