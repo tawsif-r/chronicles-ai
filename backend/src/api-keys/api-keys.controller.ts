@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Req } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
 import { IsEnum, IsString } from 'class-validator';
 import { ApiKeysService } from './api-keys.service';
@@ -12,6 +13,8 @@ class StoreKeyDto {
   key: string;
 }
 
+@ApiTags('api-keys')
+@ApiBearerAuth()
 @Controller('api-keys')
 export class ApiKeysController {
   constructor(private readonly apiKeysService: ApiKeysService) {}

@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
 import { IsString } from 'class-validator';
 import { ChatService } from './chat.service';
@@ -9,6 +10,8 @@ class SendMessageDto {
   message: string;
 }
 
+@ApiTags('chat')
+@ApiBearerAuth()
 @Controller('agents/:id/chat')
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}

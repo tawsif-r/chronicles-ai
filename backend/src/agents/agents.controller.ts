@@ -9,6 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AgentsService } from './agents.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
@@ -21,6 +22,8 @@ import type { RequestUser } from '../auth/jwt.strategy';
 import { PlanLimit } from '../billing/plan-limit.decorator';
 import { PlanLimitGuard } from '../billing/plan-limit.guard';
 
+@ApiTags('agents')
+@ApiBearerAuth()
 @Controller('agents')
 export class AgentsController {
   constructor(

@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { IsUUID } from 'class-validator';
 import { SkillsService } from './skills.service';
 
@@ -7,6 +8,8 @@ class EnableSkillDto {
   skillId: string;
 }
 
+@ApiTags('skills')
+@ApiBearerAuth()
 @Controller('skills')
 export class SkillsController {
   constructor(private readonly skillsService: SkillsService) {}

@@ -1,4 +1,5 @@
 import { Body, Controller, Post, Res } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Public } from '../auth/public.decorator';
 import { WhatsappService } from './whatsapp.service';
@@ -8,6 +9,7 @@ interface WhatsappIncoming {
   Body: string;
 }
 
+@ApiTags('webhooks')
 @Public()
 @Controller('webhooks/whatsapp')
 export class WhatsappController {

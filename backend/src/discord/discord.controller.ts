@@ -1,8 +1,10 @@
 import { Controller, Param, Post, Res } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Public } from '../auth/public.decorator';
 import { DiscordService } from './discord.service';
 
+@ApiTags('webhooks')
 @Public()
 @Controller('webhooks/discord')
 export class DiscordController {
