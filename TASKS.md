@@ -20,6 +20,36 @@ Auth, agent CRUD, inline chat, API key management, and all four channel modules 
 - All channel webhooks tested (Slack, Telegram, Discord, WhatsApp)
 - See `TESTING.md` for full test case breakdown
 
+### ✅ Channel Edit UI + Update Endpoint
+- Added `PATCH /api/agents/:id/channels/:channelId` endpoint
+- Frontend edit form with pre-populated values from existing channel
+- Pencil icon on each channel row opens inline edit form
+- Secret fields optional in edit mode ("leave blank to keep existing")
+- `useUpdateChannel()` hook + `agentsApi.updateChannel()` API call
+- Update invalidates React Query cache, re-fetches agent
+
+### ✅ Channel Setup Guides in UI
+- Collapsible "How to set up" guide for each channel type
+- Telegram: bot creation, Chat ID retrieval, ngrok exposure, webhook registration, verification
+- Slack: app creation, token retrieval, channel/team IDs, webhook URL setup
+- Discord: app creation, bot token, intents, user ID retrieval
+- WhatsApp: Twilio account, credentials, webhook configuration
+- Code snippets with exact URLs/commands for easy copy-paste
+- Only shown when adding new channel (not in edit mode)
+
+### ✅ Auto-Webhook Registration for Telegram
+- On channel creation, backend auto-calls Telegram's `setWebhook` API
+- Uses configurable `WEBHOOK_BASE_URL` env var (ngrok now, domain later)
+- If webhook registration fails, channel save fails with error message
+- No manual curl commands needed — everything happens in the app
+- Easy migration to production domain — just update `.env`
+
+### ✅ Delete Agent Button + Confirm Dialog
+- Delete button on each agent card in dashboard
+- Browser confirm dialog with agent name
+- Deletes agent + related data via `DELETE /api/agents/:id`
+- React Query invalidates list, card disappears
+
 ### ✅ Channel Modules (Slack, Telegram, Discord, WhatsApp)
 - SlackModule with signature verification, message routing, reply via WebClient
 - TelegramModule with bot token caching, webhook handler, Telegram SDK integration
@@ -75,13 +105,19 @@ Auth, agent CRUD, inline chat, API key management, and all four channel modules 
 
 ## Next Tasks (v1.2 → v1.3)
 
+### 🔲 Extend Auto-Webhook Registration
+- Slack: auto-register Event Subscriptions URL on channel creation
+- Discord: auto-verify bot permissions on channel creation (or show instructions)
+- WhatsApp: auto-register webhook URL on channel creation
+- Same pattern as Telegram — fail fast if webhook registration fails
+
 ### 🔲 Production Hardening
 - TypeORM: generate migration, set `synchronize: false`
 - Environment checklist: all secrets in env, no defaults
 - PM2 config for backend + graceful shutdown
 - Database backup strategy
 - Rate limiting on chat and webhook endpoints
-- Channel webhook secret validation hardening
+- WEBHOOK_BASE_URL validation (must be HTTPS in prod, allow HTTP only in dev)
 
 ### 🔲 Streaming Chat Responses (optional for v1.2)
 - Switch ChatController from request/response to SSE (Server-Sent Events)
@@ -91,7 +127,7 @@ Auth, agent CRUD, inline chat, API key management, and all four channel modules 
 ### 🔲 Channel Features + Polish
 - Channel enable/disable toggle (UI + backend logic)
 - Multi-channel support per agent (route to multiple channels from single chat)
-- Channel connection verification (test webhooks before saving)
+- Channel test button — send test message to verify connection works
 - Proper error logging for failed channel deliveries
 
 ---

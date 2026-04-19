@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatMessage } from './chat-message.entity';
@@ -13,6 +13,7 @@ export class ChatService {
   constructor(
     @InjectRepository(ChatMessage)
     private readonly msgRepo: Repository<ChatMessage>,
+    @Inject(forwardRef(() => AgentsService))
     private readonly agentsService: AgentsService,
     private readonly apiKeysService: ApiKeysService,
     private readonly llmService: LlmService,

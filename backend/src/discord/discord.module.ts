@@ -12,5 +12,6 @@ import { DiscordService } from './discord.service';
   ],
   controllers: [DiscordController],
   providers: [DiscordService],
+  exports: [DiscordService],
 })
 export class DiscordModule {}

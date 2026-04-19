@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trash2, Plus, Hash, Pencil } from 'lucide-react';
+import { Trash2, Plus, Hash, Pencil, Info } from 'lucide-react';
 import type { AgentChannel, ChannelType } from '@chronicles/shared';
 import { useAddChannel, useRemoveChannel, useUpdateChannel } from '../hooks/useAgents';
 
@@ -49,6 +49,48 @@ const CHANNEL_FORMS: Record<string, { label: string; fields: { key: string; labe
   },
 };
 
+const CHANNEL_GUIDES: Record<string, { steps: { text: string; code?: string }[] }> = {
+  telegram: {
+    steps: [
+      { text: '1. Create bot — open Telegram, message @BotFather, send /newbot and follow prompts. Copy the token.' },
+      { text: '2. Get your Chat ID — send any message to your bot, then open:', code: 'https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates' },
+      { text: '   Find "chat":{"id": 123456789} — that number is your Chat ID.' },
+      { text: '3. Expose local backend with ngrok:', code: 'ngrok http 3000' },
+      { text: '4. Register webhook (paste ngrok URL + your token):', code: 'https://api.telegram.org/bot<TOKEN>/setWebhook?url=<NGROK_URL>/api/webhooks/telegram/<TOKEN>' },
+      { text: '5. Verify webhook active:', code: 'https://api.telegram.org/bot<TOKEN>/getWebhookInfo' },
+    ],
+  },
+  slack: {
+    steps: [
+      { text: '1. Create Slack app at https://api.slack.com/apps → "Create New App" → "From scratch".' },
+      { text: '2. Bot Token — go to "OAuth & Permissions", add bot scopes (chat:write, channels:history), install app. Copy "Bot User OAuth Token" (xoxb-...).' },
+      { text: '3. Signing Secret — go to "Basic Information" → "App Credentials". Copy "Signing Secret".' },
+      { text: '4. Channel ID — right-click channel in Slack → "View channel details" → copy ID at bottom (starts with C).' },
+      { text: '5. Team ID — in Slack workspace URL: https://app.slack.com/client/TXXXXXXXX (starts with T).' },
+      { text: '6. Set Event Subscriptions URL in Slack app settings:', code: 'https://<YOUR_DOMAIN>/api/webhooks/slack/events' },
+      { text: '7. Subscribe to bot event: message.channels under "Event Subscriptions".' },
+    ],
+  },
+  discord: {
+    steps: [
+      { text: '1. Create app at https://discord.com/developers/applications → "New Application".' },
+      { text: '2. Go to "Bot" tab → "Add Bot" → "Reset Token" → copy the token.' },
+      { text: '3. Enable "Message Content Intent" under Privileged Gateway Intents on the Bot tab.' },
+      { text: '4. Get your Discord User ID — in Discord: Settings → Advanced → enable Developer Mode, then right-click your username → "Copy User ID".' },
+      { text: '5. Invite bot to server using OAuth2 URL with bot + applications.commands scopes.' },
+    ],
+  },
+  whatsapp: {
+    steps: [
+      { text: '1. Create Twilio account at https://twilio.com and verify your phone number.' },
+      { text: '2. Account SID + Auth Token — on Twilio Console Dashboard: https://console.twilio.com' },
+      { text: '3. Get a WhatsApp-enabled number: Twilio Console → Messaging → Senders → WhatsApp Senders.' },
+      { text: '4. Set webhook URL in Twilio Console → Messaging → Settings → WhatsApp number settings:', code: 'https://<YOUR_DOMAIN>/api/webhooks/whatsapp' },
+      { text: '5. Phone Number — enter the Twilio number in E.164 format, e.g. +14155552671.' },
+    ],
+  },
+};
+
 export default function ChannelManager({ agentId, channels }: Props) {
   const addChannel = useAddChannel(agentId);
   const removeChannel = useRemoveChannel(agentId);
@@ -58,6 +100,7 @@ export default function ChannelManager({ agentId, channels }: Props) {
   const [selectedType, setSelectedType] = useState<ChannelType>('slack');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
+  const [showGuide, setShowGuide] = useState(false);
 
   const currentForm = CHANNEL_FORMS[selectedType];
 
@@ -72,6 +115,7 @@ export default function ChannelManager({ agentId, channels }: Props) {
     setFields(newFields);
     setShowForm(true);
     setError('');
+    setShowGuide(false);
   }
 
   function startEdit(ch: AgentChannel) {
@@ -85,6 +129,7 @@ export default function ChannelManager({ agentId, channels }: Props) {
     setFields(newFields);
     setShowForm(true);
     setError('');
+    setShowGuide(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -162,6 +207,35 @@ export default function ChannelManager({ agentId, channels }: Props) {
           <p className="text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">
             {editingChannel ? `Edit ${CHANNEL_LABELS[selectedType] ?? selectedType} Channel` : currentForm.label}
           </p>
+
+          {/* Setup guide */}
+          {!editingChannel && CHANNEL_GUIDES[selectedType] && (
+            <div className="mb-1">
+              <button
+                type="button"
+                onClick={() => setShowGuide((v) => !v)}
+                className="flex items-center gap-1 text-xs text-violet-500 dark:text-violet-400 hover:underline"
+              >
+                <Info size={11} />
+                {showGuide ? 'Hide setup guide' : 'How to set up'}
+              </button>
+
+              {showGuide && (
+                <div className="mt-2 space-y-1.5 p-3 rounded-lg bg-violet-50 dark:bg-violet-500/5 border border-violet-100 dark:border-violet-500/10 text-xs text-gray-600 dark:text-zinc-400">
+                  {CHANNEL_GUIDES[selectedType].steps.map((step, i) => (
+                    <div key={i}>
+                      <p className="leading-relaxed">{step.text}</p>
+                      {step.code && (
+                        <code className="block mt-0.5 px-2 py-1 rounded bg-white dark:bg-zinc-800 border border-gray-200 dark:border-white/[0.08] font-mono text-violet-600 dark:text-violet-300 break-all select-all">
+                          {step.code}
+                        </code>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {currentForm.fields.map(({ key, label, placeholder, secret }) => (
             <div key={key}>

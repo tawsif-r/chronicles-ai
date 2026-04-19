@@ -7,8 +7,7 @@ import { ChatService } from '../chat/chat.service';
 
 @Injectable()
 export class DiscordService {
-  private client: Client | null = null;
-  private initialized = false;
+  private bots = new Map<string, Client>();
 
   constructor(
     @InjectRepository(AgentChannel)
@@ -17,11 +16,11 @@ export class DiscordService {
   ) {}
 
   async init(botToken: string): Promise<void> {
-    if (this.initialized) return;
+    if (this.bots.has(botToken)) return;
 
-    this.client = new Client({ intents: [GatewayIntentBits.MessageContent, GatewayIntentBits.DirectMessages] });
+    const client = new Client({ intents: [GatewayIntentBits.MessageContent, GatewayIntentBits.DirectMessages] });
 
-    this.client.on('messageCreate', async (msg) => {
+    client.on('messageCreate', async (msg) => {
       if (msg.author.bot) return;
       if (!msg.channel.isDMBased()) return;
 
@@ -31,8 +30,8 @@ export class DiscordService {
       await this.handleIncomingMessage(agentChannel, msg.author.id, msg.content);
     });
 
-    await this.client.login(botToken);
-    this.initialized = true;
+    await client.login(botToken);
+    this.bots.set(botToken, client);
   }
 
   async findChannelByDiscordDM(userId: string): Promise<AgentChannel | null> {
@@ -57,10 +56,12 @@ export class DiscordService {
       text,
     );
 
-    if (this.client?.isReady()) {
-      const user = await this.client.users.fetch(userId);
-      if (user) {
-        await user.send(reply);
+    for (const client of this.bots.values()) {
+      if (client.isReady()) {
+        const user = await client.users.fetch(userId);
+        if (user) {
+          await user.send(reply);
+        }
       }
     }
   }

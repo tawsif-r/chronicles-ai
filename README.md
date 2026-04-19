@@ -8,7 +8,9 @@ Web platform for creating, managing, and chatting with AI agents. Build custom a
 - **Web Chat** — Chat with agents directly in the browser
 - **Multi-Model Support** — Claude (Anthropic), GPT (OpenAI), OpenRouter, Ollama
 - **Encrypted API Keys** — Securely store and manage credentials per workspace (AES-256-GCM)
-- **Dashboard** — Monitor agent status and activity
+- **Dashboard** — Monitor agent status, delete agents, manage everything
+- **Channel Management** — Create/edit/delete channels (Telegram, Slack, Discord, WhatsApp) with auto-webhook registration
+- **Setup Guides** — Built-in step-by-step instructions + code snippets for each channel type
 - **Extensible Architecture** — Built-in hooks for Telegram, Slack, WhatsApp, Discord (channel plugins)
 
 ## Tech Stack
@@ -60,9 +62,11 @@ See `design.md` for full setup, architecture, and module overview.
 
 - ✅ Backend modules (Auth, Users, Agents, Chat, Logs, API Keys, Slack, Telegram, Discord, WhatsApp)
 - ✅ Frontend pages (Login, Dashboard, Chat, Logs, Memory, Channel Management)
-- ✅ Channel modules (Slack Events API, Telegram webhooks, Discord DMs, WhatsApp Twilio)
+- ✅ Channel modules (Slack Events API, Telegram webhooks + auto-registration, Discord DMs, WhatsApp Twilio)
+- ✅ Unit tests (80 tests, 100% pass — see `TESTING.md`)
+- ✅ Channel CRUD (create/edit/delete channels) with embedded setup guides
 - ✅ Styling (Tailwind v4, dark minimal design)
-- 🔄 Production hardening and streaming responses
+- 🔄 Production hardening, extend auto-webhook registration to Slack/Discord/WhatsApp, streaming responses
 
 ## License
 

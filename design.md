@@ -33,8 +33,12 @@
 | All pages (Login→Chat→Logs→Memory→Channels) | `frontend/src/pages/` | Done — fully styled with Tailwind v4 |
 | UI components (Sidebar, AgentCard, StatusBadge, Layout, ChannelManager) | `frontend/src/components/` | Done — dark zinc + violet accent design system |
 | Unit tests (services + controllers) | `backend/src/**/*.spec.ts` | Done — 80 tests, 100% pass (see `TESTING.md`) |
+| Channel edit UI | `frontend/src/components/ChannelManager.tsx` | Done — inline edit form, pre-populated values |
+| Channel setup guides | `frontend/src/components/ChannelManager.tsx` | Done — per-channel instructions with code snippets |
+| Delete agent | `frontend/src/components/AgentCard.tsx` | Done — confirm dialog + delete button |
+| Auto-webhook registration | `backend/src/agents/agents.service.ts` | Done — Telegram webhook registered on channel creation |
 
-**Current state (April 2026):** Full stack + channels functional. Auth, agent CRUD, chat, logs, API key management, and all four channel modules (Slack, Telegram, Discord, WhatsApp) all working. Chat calls LLM inline via @anthropic-ai/sdk and OpenAI SDK. Agent start/stop flip status in DB (no child processes). Conversation history persisted to DB. Channels route messages through ChatService and reply via provider SDKs. All frontend pages fully styled (Tailwind v4, Inter font, dark minimal design). **Comprehensive unit test suite: 80 tests, 100% passing** (see `TESTING.md`).
+**Current state (April 2026):** Full stack + channels functional. Auth, agent CRUD, chat, logs, API key management, and all four channel modules (Slack, Telegram, Discord, WhatsApp) all working. Chat calls LLM inline via @anthropic-ai/sdk and OpenAI SDK. Agent start/stop flip status in DB (no child processes). Conversation history persisted to DB. Channels route messages through ChatService and reply via provider SDKs. All frontend pages fully styled (Tailwind v4, Inter font, dark minimal design). **Comprehensive unit test suite: 80 tests, 100% passing** (see `TESTING.md`). **Channel management**: edit existing channels, delete agents, auto-webhook registration on Telegram channel creation, embedded setup guides with code snippets for all channel types.
 
 **Next:** Production hardening (migrations, env validation, rate limiting) and optional streaming responses (SSE).
 
