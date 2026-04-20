@@ -67,6 +67,28 @@ export default function AgentChat() {
         {agent && <StatusBadge status={agent.status} />}
       </div>
 
+      {/* Sub-nav */}
+      <div className="shrink-0 flex items-center gap-1 px-4 lg:px-6 h-9 border-b border-gray-200 dark:border-white/[0.06] bg-white dark:bg-zinc-950">
+        {[
+          { label: 'Overview', to: `/agents/${id}` },
+          { label: 'Chat',     to: `/agents/${id}/chat` },
+          { label: 'Logs',     to: `/agents/${id}/logs` },
+          { label: 'Memory',   to: `/agents/${id}/memory` },
+        ].map(({ label, to }) => (
+          <Link
+            key={label}
+            to={to}
+            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+              label === 'Chat'
+                ? 'bg-violet-600/10 text-violet-600 dark:text-violet-400'
+                : 'text-gray-500 dark:text-zinc-500 hover:text-gray-800 dark:hover:text-zinc-300'
+            }`}
+          >
+            {label}
+          </Link>
+        ))}
+      </div>
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         {isLoading && (

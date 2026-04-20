@@ -4,7 +4,7 @@ import { chatApi } from '../api/chat';
 export function useChatHistory(agentId: string) {
   return useQuery({
     queryKey: ['chat', agentId],
-    queryFn: () => chatApi.history(agentId),
+    queryFn: () => chatApi.history(agentId, 1, 200),
     enabled: !!agentId,
   });
 }
