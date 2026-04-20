@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import type { LogLine } from '@chronicles/shared';
+import { apiClient } from '../api/client';
 
 export function useLiveLogs(agentId: string) {
   const [lines, setLines] = useState<LogLine[]>([]);
@@ -8,6 +9,16 @@ export function useLiveLogs(agentId: string) {
 
   useEffect(() => {
     if (!agentId) return;
+
+    let cancelled = false;
+
+    // Load history first, then connect WebSocket
+    apiClient
+      .get<LogLine[]>(`/agents/${agentId}/logs`, { params: { limit: 200 } })
+      .then((res) => {
+        if (!cancelled) setLines([...res.data].reverse());
+      })
+      .catch(() => { /* history unavailable — live logs still work */ });
 
     const socket = io('/', { path: '/socket.io' });
     socketRef.current = socket;
@@ -21,6 +32,7 @@ export function useLiveLogs(agentId: string) {
     });
 
     return () => {
+      cancelled = true;
       socket.emit('unsubscribe-logs', { agentId });
       socket.disconnect();
     };

@@ -141,10 +141,10 @@ describe('AgentsService', () => {
     it('updates status in repo', async () => {
       agentRepo.update.mockResolvedValue({ affected: 1 });
 
-      await service.updateStatus(agentId, 'running');
+      await service.updateStatus(agentId, workspaceId, 'running');
 
       expect(agentRepo.update).toHaveBeenCalledWith(
-        agentId,
+        { id: agentId, workspace: { id: workspaceId } },
         expect.objectContaining({ status: 'running' }),
       );
     });

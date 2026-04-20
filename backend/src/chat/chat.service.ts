@@ -6,6 +6,7 @@ import { AgentsService } from '../agents/agents.service';
 import { ApiKeysService } from '../api-keys/api-keys.service';
 import { LlmService } from '../llm/llm.service';
 import { BillingService } from '../billing/billing.service';
+import { LogsService } from '../logs/logs.service';
 
 @Injectable()
 export class ChatService {
@@ -19,6 +20,7 @@ export class ChatService {
     private readonly apiKeysService: ApiKeysService,
     private readonly llmService: LlmService,
     private readonly billingService: BillingService,
+    private readonly logsService: LogsService,
   ) {}
 
   async sendMessage(
@@ -28,44 +30,59 @@ export class ChatService {
   ): Promise<string> {
     const agent = await this.agentsService.findOne(agentId, workspaceId);
 
-    // Load recent history from DB (last 50 turns = 100 messages)
-    const history = await this.msgRepo.find({
-      where: { agent: { id: agentId } },
-      order: { createdAt: 'ASC' },
-      take: 100,
-    });
+    const log = async (level: 'info' | 'warn' | 'error' | 'debug', msg: string) => {
+      try { await this.logsService.ingest(agentId, level, msg); } catch { /* never break chat */ }
+    };
 
-    const messages = [
-      ...history.map((m) => ({ role: m.role, content: m.content })),
-      { role: 'user' as const, content: message },
-    ];
+    try {
+      await log('info', `Message received (${message.length} chars)`);
 
-    await this.billingService.checkMessageLimit(workspaceId);
+      // Load recent history from DB (last 50 turns = 100 messages)
+      const history = await this.msgRepo.find({
+        where: { agent: { id: agentId } },
+        order: { createdAt: 'ASC' },
+        take: 100,
+      });
 
-    // Get decrypted API keys for this workspace
-    const apiKeys = await this.apiKeysService.buildEnvForAgent(workspaceId);
-    this.logger.log(
-      `workspace=${workspaceId} provider=${agent.modelProvider} model=${agent.modelName} keys=[${Object.keys(apiKeys).join(',')}]`,
-    );
+      const messages = [
+        ...history.map((m) => ({ role: m.role, content: m.content })),
+        { role: 'user' as const, content: message },
+      ];
 
-    // Call LLM
-    const reply = await this.llmService.chat({
-      provider: agent.modelProvider,
-      model: agent.modelName,
-      systemPrompt: agent.soulMd,
-      messages,
-      apiKeys,
-    });
+      await this.billingService.checkMessageLimit(workspaceId);
 
-    // Persist both turns
-    await this.msgRepo.save([
-      this.msgRepo.create({ agent, role: 'user', content: message }),
-      this.msgRepo.create({ agent, role: 'assistant', content: reply }),
-    ]);
+      // Get decrypted API keys for this workspace
+      const apiKeys = await this.apiKeysService.buildEnvForAgent(workspaceId);
+      this.logger.log(
+        `workspace=${workspaceId} provider=${agent.modelProvider} model=${agent.modelName} keys=[${Object.keys(apiKeys).join(',')}]`,
+      );
 
-    await this.billingService.incrementMessageCount(workspaceId);
+      await log('debug', `LLM call: provider=${agent.modelProvider} model=${agent.modelName}`);
 
-    return reply;
+      // Call LLM
+      const reply = await this.llmService.chat({
+        provider: agent.modelProvider,
+        model: agent.modelName,
+        systemPrompt: agent.soulMd,
+        messages,
+        apiKeys,
+      });
+
+      await log('info', `Reply generated (${reply.length} chars)`);
+
+      // Persist both turns
+      await this.msgRepo.save([
+        this.msgRepo.create({ agent, role: 'user', content: message }),
+        this.msgRepo.create({ agent, role: 'assistant', content: reply }),
+      ]);
+
+      await this.billingService.incrementMessageCount(workspaceId);
+
+      return reply;
+    } catch (err: any) {
+      await log('error', err?.message ?? 'Unknown error in sendMessage');
+      throw err;
+    }
   }
 
   async getHistory(
