@@ -31,6 +31,6 @@ export class AuthController {
 
   @Get('me')
   me(@Request() req: { user: RequestUser }) {
-    return { id: req.user.userId, email: req.user.email };
+    return { id: req.user.userId, email: req.user.email, workspaceId: req.user.workspaceId };
   }
 }

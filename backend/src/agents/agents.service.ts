@@ -106,10 +106,11 @@ export class AgentsService {
 
   async updateStatus(
     id: string,
+    workspaceId: string,
     status: Agent['status'],
     gatewayPort: number | null = null,
   ): Promise<void> {
-    await this.repo.update(id, { status, gatewayPort });
+    await this.repo.update({ id, workspace: { id: workspaceId } }, { status, gatewayPort });
   }
 
   async addChannel(
