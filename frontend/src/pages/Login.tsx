@@ -15,7 +15,7 @@ export default function Login() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setError(''); setLoading(true);
     try { await login({ email, password }); navigate('/dashboard'); }
-    catch { setError('Invalid email or password'); }
+    catch (err: any) { setError(err?.response?.data?.message ?? 'Invalid email or password'); }
     finally { setLoading(false); }
   }
 

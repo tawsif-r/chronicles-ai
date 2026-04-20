@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import Sidebar from './Sidebar';
 
@@ -34,7 +35,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           >
             <Menu size={18} />
           </button>
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">ChroniclesAI</span>
+          <Link to="/dashboard" className="text-sm font-semibold text-gray-900 dark:text-white">ChroniclesAI</Link>
         </div>
 
         <main className="flex-1 overflow-auto min-w-0">

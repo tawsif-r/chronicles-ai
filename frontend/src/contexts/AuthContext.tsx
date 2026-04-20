@@ -6,11 +6,12 @@ import {
   useState,
 } from 'react';
 import { apiClient } from '../api/client';
+import { queryClient } from '../api/queryClient';
 import type { AuthTokens, LoginDto, RegisterDto } from '@chronicles/shared';
 
 interface AuthCtx {
   token: string | null;
-  user: { id: string; email: string } | null;
+  user: { id: string; email: string; workspaceId: string } | null;
   login: (dto: LoginDto) => Promise<void>;
   register: (dto: RegisterDto) => Promise<void>;
   logout: () => void;
@@ -22,14 +23,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(
     () => localStorage.getItem('access_token'),
   );
-  const [user, setUser] = useState<{ id: string; email: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email: string; workspaceId: string } | null>(null);
 
   useEffect(() => {
     if (token) {
       localStorage.setItem('access_token', token);
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       // Fetch user profile
-      apiClient.get<{ id: string; email: string }>('/auth/me')
+      apiClient.get<{ id: string; email: string; workspaceId: string }>('/auth/me')
         .then((r) => setUser(r.data))
         .catch(() => setUser(null));
     } else {
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     setToken(null);
+    queryClient.clear();
   }, []);
 
   return (

@@ -16,7 +16,7 @@ export class RuntimeService {
 
   async start(agentId: string, workspaceId: string): Promise<void> {
     await this.agentsService.assertOwnership(agentId, workspaceId);
-    await this.agentsService.updateStatus(agentId, 'running', null);
+    await this.agentsService.updateStatus(agentId, workspaceId, 'running', null);
     this.logger.log(`Agent ${agentId} started`);
   }
 
@@ -26,7 +26,7 @@ export class RuntimeService {
     } catch {
       return;
     }
-    await this.agentsService.updateStatus(agentId, 'stopped', null);
+    await this.agentsService.updateStatus(agentId, workspaceId, 'stopped', null);
     this.logger.log(`Agent ${agentId} stopped`);
   }
 

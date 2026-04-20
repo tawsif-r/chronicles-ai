@@ -15,7 +15,7 @@ export default function Register() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setError(''); setLoading(true);
     try { await register({ email, password }); navigate('/dashboard'); }
-    catch { setError('Registration failed. Email may already be in use.'); }
+    catch (err: any) { setError(err?.response?.data?.message ?? 'Registration failed. Try again.'); }
     finally { setLoading(false); }
   }
 

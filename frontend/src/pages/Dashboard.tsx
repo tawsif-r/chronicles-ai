@@ -33,7 +33,7 @@ export default function Dashboard() {
             <div key={i} className="h-36 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-white/[0.06] animate-pulse" />
           ))}
         </div>
-      ) : agents?.length === 0 ? (
+      ) : !agents || agents.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-white/[0.08] flex items-center justify-center mb-4">
             <Bot size={24} className="text-gray-400 dark:text-zinc-600" />
@@ -50,7 +50,7 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {agents!.map((agent) => (
+          {agents.map((agent) => (
             <AgentCard key={agent.id} agent={agent} />
           ))}
         </div>

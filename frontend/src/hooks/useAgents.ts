@@ -1,9 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsApi } from '../api/agents';
+import { useAuth } from '../contexts/AuthContext';
 import type { CreateAgentDto, CreateChannelDto, UpdateAgentDto, UpdateChannelDto } from '@chronicles/shared';
 
 export function useAgents() {
-  return useQuery({ queryKey: ['agents'], queryFn: agentsApi.list });
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['agents', user?.workspaceId],
+    queryFn: agentsApi.list,
+    enabled: !!user,
+  });
 }
 
 export function useAgent(id: string) {

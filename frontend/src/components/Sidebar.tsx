@@ -24,12 +24,12 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     <aside className="w-[220px] shrink-0 flex flex-col h-full bg-white dark:bg-zinc-950 border-r border-gray-200 dark:border-white/[0.06]">
       {/* Brand */}
       <div className="px-5 h-16 flex items-center justify-between border-b border-gray-200 dark:border-white/[0.06] shrink-0">
-        <div className="flex items-center gap-2.5">
+        <NavLink to="/dashboard" className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-900/30">
             <Sparkles size={14} className="text-white" />
           </div>
           <span className="text-sm font-semibold tracking-tight text-gray-900 dark:text-white">ChroniclesAI</span>
-        </div>
+        </NavLink>
         {/* Mobile close */}
         {onClose && (
           <button onClick={onClose} className="lg:hidden p-1 rounded-md text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300">
