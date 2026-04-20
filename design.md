@@ -39,10 +39,14 @@
 | Channel setup guides | `frontend/src/components/ChannelManager.tsx` | Done — per-channel instructions with code snippets |
 | Delete agent | `frontend/src/components/AgentCard.tsx` | Done — confirm dialog + delete button |
 | Auto-webhook registration | `backend/src/agents/agents.service.ts` | Done — Telegram webhook registered on channel creation |
+| Agent logs (live stream + history) | `backend/src/logs/`, `frontend/src/hooks/useLiveLogs.ts` | Done — LogsService injected into ChatService + RuntimeService; HTTP history endpoint; frontend loads history before WS connect |
+| Scheduled agents | `backend/src/schedules/`, `frontend/src/components/ScheduleManager.tsx` | Done — Bull repeatable jobs, cron scheduling, channel dispatch (Slack/Telegram/Discord), billing-metered, 6 tests |
+| Agent sub-page navigation | `frontend/src/pages/AgentChat.tsx`, `AgentLogs.tsx`, `AgentMemory.tsx` | Done — tab bar on all agent sub-pages (Overview / Chat / Logs / Memory) |
+| Chat history pagination fix | `frontend/src/hooks/useChat.ts` | Done — limit 200 (was 50, caused new messages to disappear) |
 
-**Current state (April 19 2026):** Full stack + channels + billing + Swagger fully functional. Auth, agent CRUD, chat, logs, API key management, and all four channel modules (Slack, Telegram, Discord, WhatsApp) all working. Chat calls LLM inline via @anthropic-ai/sdk and OpenAI SDK. Agent start/stop flip status in DB (no child processes). Conversation history persisted to DB. Channels route messages through ChatService and reply via provider SDKs. All frontend pages fully styled (Tailwind v4, Inter font, dark minimal design). **Comprehensive unit test suite: 80 tests, 100% passing** (see `TESTING.md`). **Channel management**: edit existing channels, delete agents, auto-webhook registration on Telegram channel creation, embedded setup guides with code snippets for all channel types. **Billing system**: FREE/PRO/MAX plans seeded on startup, per-workspace message counting via Redis, route-level PlanLimitGuard with @PlanLimit() decorator. **Swagger API docs**: all 40+ endpoints documented with schemas, auto-generated from class-validator decorators, JWT auth support.
+**Current state (April 20 2026):** Full stack + channels + billing + Swagger + scheduled agents fully functional. Agent logs wired into chat and runtime lifecycle. Scheduled agents use Bull repeatable jobs (Redis-backed, survive restarts), fire on cron, call LLM via ChatService (billing-metered), post result to all enabled channels (Slack/Telegram/Discord) + chat history + live logs. Frontend has sub-page tab nav on all agent pages. Unit test suite: 86+ tests, 100% passing.
 
-**Tooling:** code-review-graph dependency analysis integrated — 541-node call graph queryable via SQLite for cross-module task planning.
+**Tooling:** code-review-graph dependency analysis integrated — 555-node call graph queryable via SQLite for cross-module task planning.
 
 ### Code Exploration via code-review-graph
 

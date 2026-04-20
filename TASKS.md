@@ -5,8 +5,37 @@
 ---
 
 ## Current Status
-**Full stack + channels functional.** Backend :3000 · Frontend :5173 · Postgres + Redis in Docker.
-Auth, agent CRUD, inline chat, API key management, all four channel modules, **billing system**, **Swagger API docs**, and **code-review-graph dependency analysis** all working.
+**Full stack + channels + scheduled agents functional.** Backend :3000 · Frontend :5173 · Postgres + Redis in Docker.
+Auth, agent CRUD, inline chat, live logs, API key management, all four channel modules, billing, Swagger, **scheduled agents**, and code-review-graph all working.
+
+---
+
+## Recently Completed (Session — April 20 2026)
+
+### ✅ Scheduled Agents
+- New `SchedulesModule` with Bull repeatable jobs (Redis-backed, survive restarts)
+- `AgentSchedule` entity: cronExpression, prompt, enabled, lastRunAt, workspaceId (denormalized)
+- CRUD endpoints: `GET/POST /api/agents/:id/schedules`, `PATCH/DELETE /api/agents/:id/schedules/:sid`
+- `ScheduleProcessor`: fires on cron → `ChatService.sendMessage` → logs → channel dispatch
+- Channel dispatch: Slack (`sendMessage`), Telegram (`sendOutbound`), Discord (`sendOutbound`) — WhatsApp skipped (no stored recipient)
+- Billing-metered: scheduled runs count against monthly message limit
+- Frontend: `ScheduleManager` component in new Schedules tab on AgentDetail page
+- 6 unit tests (create/remove/update/onModuleInit)
+
+### ✅ Agent Logs Wired to Chat + Runtime
+- `LogsService` injected into `ChatService` and `RuntimeService`
+- Chat logs: message received (info), LLM call (debug), reply generated (info), error (error)
+- Runtime logs: agent started / stopped / restarted (info)
+- Graceful degradation: log failures never break chat or lifecycle
+- `useLiveLogs` hook loads HTTP history before connecting WebSocket
+
+### ✅ Agent Sub-Page Navigation Tabs
+- Tab bar on AgentChat, AgentLogs, AgentMemory: Overview / Chat / Logs / Memory
+- Active tab highlighted in violet, direct jump between pages
+
+### ✅ Chat History Pagination Fix
+- `useChat.ts` now fetches `limit=200` (was 50)
+- Root cause: users with >50 messages saw new replies disappear (landed on page 2)
 
 ---
 
@@ -131,7 +160,17 @@ Auth, agent CRUD, inline chat, API key management, all four channel modules, **b
 
 ---
 
-## Next Tasks (v1.3 → v1.4)
+## Next Tasks (v1.4 → v1.5)
+
+### 🔲 Streaming Chat Responses
+- Switch ChatController to SSE (Server-Sent Events)
+- Frontend reads stream token-by-token
+- Anthropic + OpenRouter both support streaming
+
+### 🔲 Schedule Enhancements
+- WhatsApp outbound (requires storing recipient number in channel config)
+- Next-run preview in UI (compute from cron expression)
+- Run history per schedule (last N results)
 
 ### 🔲 Extend Auto-Webhook Registration
 - Slack: auto-register Event Subscriptions URL on channel creation

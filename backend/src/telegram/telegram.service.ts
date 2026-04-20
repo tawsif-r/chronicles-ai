@@ -33,6 +33,11 @@ export class TelegramService {
       .getOne();
   }
 
+  async sendOutbound(botToken: string, chatId: string, text: string): Promise<void> {
+    const bot = this.getBot(botToken);
+    await bot.sendMessage(chatId, text);
+  }
+
   async handleIncomingMessage(
     agentChannel: AgentChannel,
     chatId: string,

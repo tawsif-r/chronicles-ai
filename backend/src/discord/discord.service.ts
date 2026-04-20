@@ -34,6 +34,16 @@ export class DiscordService {
     this.bots.set(botToken, client);
   }
 
+  async sendOutbound(botToken: string, userId: string, text: string): Promise<void> {
+    await this.init(botToken);
+    const client = this.bots.get(botToken);
+    if (!client?.isReady()) return;
+    try {
+      const user = await client.users.fetch(userId);
+      await user.send(text);
+    } catch { /* user may have DMs disabled */ }
+  }
+
   async findChannelByDiscordDM(userId: string): Promise<AgentChannel | null> {
     return this.channelRepo
       .createQueryBuilder('ch')

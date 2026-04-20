@@ -4,14 +4,16 @@ import { ChevronLeft, MessageSquare, Activity, Brain, Play, Square, Save } from 
 import { useAgent, useStartAgent, useStopAgent, useUpdateAgent } from '../hooks/useAgents';
 import StatusBadge from '../components/StatusBadge';
 import ChannelManager from '../components/ChannelManager';
+import ScheduleManager from '../components/ScheduleManager';
 
-type Tab = 'soul' | 'tools' | 'identity' | 'heartbeat' | 'channels';
+type Tab = 'soul' | 'tools' | 'identity' | 'heartbeat' | 'channels' | 'schedules';
 const tabs: { id: Tab; label: string }[] = [
   { id: 'soul', label: 'SOUL.md' },
   { id: 'tools', label: 'TOOLS.md' },
   { id: 'identity', label: 'IDENTITY.md' },
   { id: 'heartbeat', label: 'HEARTBEAT.md' },
   { id: 'channels', label: 'Channels' },
+  { id: 'schedules', label: 'Schedules' },
 ];
 const fieldMap: Record<string, 'soulMd' | 'toolsMd' | 'identityMd' | 'heartbeatMd'> = {
   soul: 'soulMd', tools: 'toolsMd', identity: 'identityMd', heartbeat: 'heartbeatMd',
@@ -101,6 +103,8 @@ export default function AgentDetail() {
       <div className="flex-1 relative overflow-hidden overflow-y-auto">
         {activeTab === 'channels' ? (
           <ChannelManager agentId={id!} channels={agent.channels} />
+        ) : activeTab === 'schedules' ? (
+          <ScheduleManager agentId={id!} />
         ) : (
           <textarea
             value={value}

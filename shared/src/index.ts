@@ -136,6 +136,28 @@ export interface SendMessageResponse {
   reply: string;
 }
 
+export interface AgentSchedule {
+  id: string;
+  agentId: string;
+  workspaceId: string;
+  cronExpression: string;
+  prompt: string;
+  enabled: boolean;
+  lastRunAt: string | null;
+  createdAt: string;
+}
+
+export interface CreateScheduleDto {
+  cronExpression: string;
+  prompt: string;
+}
+
+export interface UpdateScheduleDto {
+  cronExpression?: string;
+  prompt?: string;
+  enabled?: boolean;
+}
+
 export interface AgentStatusResponse {
   status: AgentStatus;
   gatewayPort: number | null;
