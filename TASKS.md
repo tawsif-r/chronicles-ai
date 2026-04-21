@@ -160,42 +160,144 @@ Auth, agent CRUD, inline chat, live logs, API key management, all four channel m
 
 ---
 
-## Next Tasks (v1.4 → v1.5)
+## Next Tasks (v1.5) — Core Agent Upgrades
 
 ### 🔲 Streaming Chat Responses
-- Switch ChatController to SSE (Server-Sent Events)
-- Frontend reads stream token-by-token
-- Anthropic + OpenRouter both support streaming
+**Why:** Agents feel slow with a 3–8s blank wait. Streaming shows tokens as they arrive.
+- Switch `ChatController.send()` to SSE (`@Sse`)
+- `LlmService`: add `chatStream()` returning `AsyncIterable<string>` using Anthropic/OpenAI stream APIs
+- Frontend: replace single `fetch` with `EventSource`, append tokens to message bubble
+- Files: `chat.controller.ts`, `llm.service.ts`, `AgentChat.tsx`, `useChat.ts`
 
-### 🔲 Schedule Enhancements
-- WhatsApp outbound (requires storing recipient number in channel config)
-- Next-run preview in UI (compute from cron expression)
-- Run history per schedule (last N results)
+### 🔲 Tool Use / Function Calling
+**Why:** Without tools, agents can only talk — they can't *do* anything. This is the biggest capability gap.
+- `Agent.toolsMd` already exists but is ignored — parse it as JSON/YAML tool definitions
+- `LlmService.chat()`: pass `tools[]` to Anthropic/OpenAI, detect `tool_use` blocks in response
+- Add agentic loop in `ChatService`: if LLM returns tool call → execute tool → feed result back → re-call LLM
+- Built-in tools to start: `http_request`, `read_memory`, `write_memory`, `search_web`
+- Files: `llm.service.ts`, `chat.service.ts`, `agent.entity.ts`, new `tools/` module
 
-### 🔲 Extend Auto-Webhook Registration
-- Slack: auto-register Event Subscriptions URL on channel creation
-- Discord: auto-verify bot permissions on channel creation (or show instructions)
-- WhatsApp: auto-register webhook URL on channel creation
-- Same pattern as Telegram — fail fast if webhook registration fails
+### 🔲 LLM Parameters Per Agent
+**Why:** `max_tokens` is hardcoded at 4096, temperature is provider default — no per-agent tuning.
+- Add columns to `Agent` entity: `temperature` (float, default 1.0), `maxTokens` (int, default 4096), `topP` (float, nullable)
+- Pass through in `LlmService.chat()` for all providers
+- Add sliders/fields to `AgentNew.tsx` and `AgentDetail.tsx`
+- Files: `agent.entity.ts`, `llm.service.ts`, `AgentNew.tsx`, `AgentDetail.tsx`, shared DTOs
 
-### 🔲 Production Hardening
-- TypeORM: generate migration, set `synchronize: false`
-- Environment checklist: all secrets in env, no defaults
-- PM2 config for backend + graceful shutdown
-- Database backup strategy
-- Rate limiting on chat and webhook endpoints
-- WEBHOOK_BASE_URL validation (must be HTTPS in prod, allow HTTP only in dev)
+### 🔲 Memory Injection (fix existing system)
+**Why:** `MEMORY.md` is written to disk but never read by `ChatService` — memory does nothing today.
+- In `ChatService.sendMessage()`: load `MEMORY.md` from `workspace.diskPath/agents/{id}/MEMORY.md`
+- Inject as a system-level message before conversation history: `[system_memory, ...history, user_msg]`
+- After each reply, optionally append summary line to `MEMORY.md` (agent-driven via tool or auto-summarize)
+- Files: `chat.service.ts`, `agents.service.ts` (already has `getMemory`/`setMemory`)
 
-### 🔲 Streaming Chat Responses (optional for v1.2)
-- Switch ChatController from request/response to SSE (Server-Sent Events)
-- Frontend switches to stream consumption instead of single response
-- Allow real-time message streaming from LLMs that support it
+### 🔲 Prompt Caching (Anthropic)
+**Why:** Long system prompts + memory re-sent every message = expensive. Anthropic caches prompts for 5 min at 10% cost.
+- Add `cache_control: { type: "ephemeral" }` to system prompt block in `callAnthropic()`
+- Track cache hit/miss in logs
+- File: `llm.service.ts:70`
+
+---
+
+## Next Tasks (v1.6) — Broader Capabilities
+
+### 🔲 File Attachments + Vision
+**Why:** Agents can't see images, PDFs, or documents — limits use cases like document Q&A, image analysis.
+- New endpoint: `POST /api/agents/:id/files` (multipart, store to disk or S3)
+- Vision-capable models (claude-3.x, gpt-4o): pass image as base64 content block
+- PDF: extract text via `pdf-parse`, inject into context
+- Frontend: file drag-drop in `AgentChat.tsx`
+- Files: new `files/` module, `chat.service.ts`, `llm.service.ts`, `AgentChat.tsx`
+
+### 🔲 Token Usage & Cost Tracking
+**Why:** No visibility into how much each agent costs. Billing only counts messages, not tokens.
+- Anthropic + OpenAI both return `usage: { input_tokens, output_tokens }` in response
+- Save to new `LlmUsage` entity: agentId, provider, model, inputTokens, outputTokens, cost, timestamp
+- Show per-agent token usage in `AgentDetail.tsx` → Usage tab
+- Files: `llm.service.ts`, new `usage/` module, `AgentDetail.tsx`
+
+### 🔲 Outbound Webhooks
+**Why:** Agents can reply on channels but can't push events to external systems (CRMs, Zapier, custom APIs).
+- New `WebhookEndpoint` entity: agentId, url, secret, events (message_sent, schedule_run, error)
+- `WebhooksService.dispatch()` — HMAC-signed POST on agent events
+- Called from `ChatService` and `ScheduleProcessor` after each run
+- Frontend: webhook config in `AgentDetail.tsx`
+- Files: new `webhooks/` module
+
+### 🔲 More LLM Providers
+**Why:** Groq (fastest inference), Google Gemini (cheap + long context), Mistral — common asks.
+- `LlmService`: add `callGroq()` (OpenAI-compat, just different baseURL + model names)
+- Add `callGemini()` using `@google/generative-ai` SDK
+- Update `ModelProvider` shared type: add `'groq' | 'gemini' | 'mistral'`
+- Files: `llm.service.ts`, `shared/src/index.ts`, `AgentNew.tsx` model selector
+
+### 🔲 RAG — Knowledge Base per Agent
+**Why:** Agents can only use conversation history as context. RAG lets agents answer from uploaded documents.
+- New `KnowledgeBase` entity: agentId, source (file/url), chunks, embeddings
+- On document upload: chunk + embed using `text-embedding-3-small` or Ollama embed
+- Store vectors in `pgvector` extension (already using Postgres)
+- At chat time: embed user query, top-K similarity search, inject chunks before history
+- Frontend: `AgentDetail.tsx` → Knowledge tab, file upload, URL crawl
+- Files: new `rag/` module, `chat.service.ts`
 
 ### 🔲 Channel Features + Polish
 - Channel enable/disable toggle (UI + backend logic)
-- Multi-channel support per agent (route to multiple channels from single chat)
-- Channel test button — send test message to verify connection works
-- Proper error logging for failed channel deliveries
+- Channel test button — send test message to verify connection
+- Proper error logging + retry for failed channel deliveries
+- WhatsApp outbound for scheduled runs (store recipient number in config)
+
+### 🔲 Extend Auto-Webhook Registration
+- Slack: auto-register Event Subscriptions URL on channel creation
+- Discord: auto-verify bot permissions on channel creation
+- WhatsApp: auto-register webhook URL via Twilio API
+- Same fail-fast pattern as Telegram
+
+### 🔲 Schedule Enhancements
+- Next-run preview in UI (compute from cron expression client-side)
+- Run history per schedule (last N results with status)
+- Schedule-level retry on failure (Bull retry config)
+
+---
+
+## Next Tasks (v1.7) — Advanced / Multi-Agent
+
+### 🔲 Structured Output / JSON Mode
+**Why:** Agents used as API backends (e.g. data extraction, classification) need guaranteed JSON output.
+- Add optional `responseSchema` (JSON Schema) field to `Agent` entity
+- If set: use Anthropic JSON mode / OpenAI `response_format: { type: "json_object" }`
+- Validate LLM output against schema before saving; retry once on invalid
+- Files: `agent.entity.ts`, `llm.service.ts`, `chat.service.ts`
+
+### 🔲 Agent Templates / Marketplace
+**Why:** New users see a blank form — no guidance on what makes a good agent.
+- Seed DB with 5–10 pre-built agent templates (customer support, coding assistant, summarizer, translator)
+- `GET /api/templates` endpoint returning template list
+- "Create from template" button in Dashboard → pre-fills `AgentNew` form
+- Files: new `templates/` module, `Dashboard.tsx`
+
+### 🔲 Multi-Agent Delegation
+**Why:** Complex tasks benefit from specialized sub-agents (planner → researcher → writer).
+- Add `delegates: AgentRef[]` field to agent config
+- `ChatService`: if LLM returns `delegate_to` tool call, route to another agent's `sendMessage`
+- Pass response back as tool result to original agent
+- Files: `chat.service.ts`, `llm.service.ts`, `agent.entity.ts`
+
+### 🔲 Agent API Endpoint (public-facing)
+**Why:** Developers want to call their agents from external apps without managing JWT.
+- New `AgentApiKey` entity: per-agent static key (not the LLM provider keys)
+- `POST /api/v1/agents/:slug/chat` — auth via `X-Agent-Key` header, no JWT required
+- Rate-limited per key; counts against billing
+- Files: new `agent-api/` module
+
+---
+
+## Production Hardening (ongoing)
+- TypeORM: generate migration file, set `synchronize: false`
+- PM2 config for backend + graceful shutdown hooks
+- Rate limiting on `/api/chat` and all webhook endpoints (`@nestjs/throttler`)
+- WEBHOOK_BASE_URL must be HTTPS in production (validate in `agents.service.ts`)
+- Database backup strategy (pg_dump cron or managed DB)
+- Environment checklist: no default secrets, all required vars validated on startup
 
 ---
 
