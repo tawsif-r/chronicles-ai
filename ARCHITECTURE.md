@@ -38,6 +38,7 @@ chroniclesAi/
 │   ├── runtime/
 │   ├── schedules/
 │   ├── skills/
+│   ├── tools/
 │   ├── slack/
 │   ├── telegram/
 │   ├── users/
@@ -273,6 +274,32 @@ Discord uses a persistent bot connection (not webhooks). The bot must be running
 
 ---
 
+### `tools` — Tool Use / Agentic Loop
+**Path:** `backend/src/tools/`
+
+Enables Claude agents to call built-in tools during a conversation. When an agent has `toolsMd` set to a valid JSON array, `ChatService` runs an agentic loop instead of a single LLM call — the LLM can request tool executions, get results fed back, and iterate up to 5 times before returning a final answer.
+
+| File | Role |
+|---|---|
+| `tool-executor.service.ts` | Executes built-in tools by name; returns string result |
+| `tools.module.ts` | NestJS module; imports `AgentsModule` + `WorkspacesModule` via `forwardRef` |
+
+**Built-in tools:**
+
+| Tool | What it does |
+|---|---|
+| `http_request` | GET/POST any public URL; blocks private IPs; 10s timeout; truncates at 4000 chars |
+| `read_memory` | Reads the agent's `MEMORY.md` from disk |
+| `write_memory` | Overwrites the agent's `MEMORY.md` on disk |
+
+**How to add tools to an agent:** Set `toolsMd` to a JSON array of tool definitions (Anthropic tool schema format). Empty or invalid JSON = tools disabled, falls back to normal chat.
+
+**Only Claude (`modelProvider === 'claude'`) supports tool use.** Other providers fall through to the standard `LlmService.chat()` path unchanged.
+
+**Agentic loop** lives in `ChatService.runAgenticLoop()` (`chat.service.ts:125`). `LlmService.agenticRound()` (`llm.service.ts:103`) handles each single Anthropic API call with tools.
+
+---
+
 ### `skills` — Agent Skill Flags
 **Path:** `backend/src/skills/`
 
@@ -295,10 +322,14 @@ agents ────────────► workspaces
   └── on addChannel ► telegram / slack / discord / whatsapp
 
 chat ──────────────► agents (load agent config)
-  ├──────────────► llm (call LLM)
+  ├──────────────► llm (call LLM / agenticRound)
   ├──────────────► api-keys (decrypt keys for LLM)
   ├──────────────► logs (write events)
-  └──────────────► billing (increment message count)
+  ├──────────────► billing (increment message count)
+  └──────────────► tools (execute tool calls in agentic loop)
+
+tools ─────────────► agents (read/write MEMORY.md)
+  └──────────────► workspaces (resolve disk path)
 
 schedules ─────────► chat (fire sendMessage on cron)
   └──────────────► slack / telegram / discord (dispatch reply)

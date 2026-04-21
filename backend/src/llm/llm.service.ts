@@ -17,6 +17,35 @@ export interface LlmChatParams {
   apiKeys: Record<string, string>;
 }
 
+export interface LlmTool {
+  name: string;
+  description: string;
+  input_schema: {
+    type: 'object';
+    properties: Record<string, unknown>;
+    required?: string[];
+  };
+}
+
+export interface ToolCall {
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+}
+
+export interface AgenticRoundResult {
+  text: string;
+  toolCalls: ToolCall[];
+  /** Raw Anthropic content blocks — feed verbatim into next assistant message */
+  rawContent: Anthropic.Messages.ContentBlock[];
+}
+
+/** Message type for the agentic loop — supports both plain string and tool-use content */
+export type AgenticMessage =
+  | { role: 'user' | 'assistant'; content: string }
+  | { role: 'assistant'; content: Anthropic.Messages.ContentBlock[] }
+  | { role: 'user'; content: Array<{ type: 'tool_result'; tool_use_id: string; content: string }> };
+
 @Injectable()
 export class LlmService {
   private readonly logger = new Logger(LlmService.name);
@@ -24,7 +53,6 @@ export class LlmService {
   async chat(params: LlmChatParams): Promise<string> {
     const { provider, model, systemPrompt, messages, apiKeys } = params;
 
-    // Log key presence for debugging (never log actual key values)
     const presentKeys = Object.keys(apiKeys);
     this.logger.log(
       `LLM call: provider=${provider} model=${model} msgs=${messages.length} keys=[${presentKeys.join(',')}]`,
@@ -63,6 +91,49 @@ export class LlmService {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`LLM error [${provider}/${model}]: ${msg}`);
+      throw new InternalServerErrorException(`LLM error: ${msg}`);
+    }
+  }
+
+  /**
+   * Single round of an agentic loop with tool use.
+   * Only supported for Anthropic (Claude) models.
+   * Returns the text response, any tool calls, and raw content blocks for the next turn.
+   */
+  async agenticRound(params: {
+    model: string;
+    systemPrompt: string;
+    messages: AgenticMessage[];
+    apiKey: string;
+    tools: LlmTool[];
+  }): Promise<AgenticRoundResult> {
+    const { model, systemPrompt, messages, apiKey, tools } = params;
+    this.logger.log(`agentic round: model=${model} tools=[${tools.map(t => t.name).join(',')}] msgs=${messages.length}`);
+
+    try {
+      const client = new Anthropic({ apiKey });
+      const response = await client.messages.create({
+        model,
+        max_tokens: 4096,
+        system: systemPrompt || undefined,
+        messages: messages as Anthropic.Messages.MessageParam[],
+        tools: tools as Anthropic.Messages.Tool[],
+        tool_choice: { type: 'auto' },
+      });
+
+      const text = response.content
+        .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
+        .map(b => b.text)
+        .join('');
+
+      const toolCalls: ToolCall[] = response.content
+        .filter((b): b is Anthropic.Messages.ToolUseBlock => b.type === 'tool_use')
+        .map(b => ({ id: b.id, name: b.name, input: b.input as Record<string, unknown> }));
+
+      return { text, toolCalls, rawContent: response.content };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`agentic round error [${model}]: ${msg}`);
       throw new InternalServerErrorException(`LLM error: ${msg}`);
     }
   }

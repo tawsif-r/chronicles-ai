@@ -8,9 +8,10 @@ import { ApiKeysModule } from '../api-keys/api-keys.module';
 import { LlmModule } from '../llm/llm.module';
 import { BillingModule } from '../billing/billing.module';
 import { LogsModule } from '../logs/logs.module';
+import { ToolsModule } from '../tools/tools.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ChatMessage]), forwardRef(() => AgentsModule), ApiKeysModule, LlmModule, BillingModule, LogsModule],
+  imports: [TypeOrmModule.forFeature([ChatMessage]), forwardRef(() => AgentsModule), ApiKeysModule, LlmModule, BillingModule, LogsModule, ToolsModule],
   controllers: [ChatController],
   providers: [ChatService],
   exports: [ChatService],

@@ -169,7 +169,7 @@ Auth, agent CRUD, inline chat, live logs, API key management, all four channel m
 - Frontend: replace single `fetch` with `EventSource`, append tokens to message bubble
 - Files: `chat.controller.ts`, `llm.service.ts`, `AgentChat.tsx`, `useChat.ts`
 
-### 🔲 Tool Use / Function Calling
+### ✅ Tool Use / Function Calling
 **Why:** Without tools, agents can only talk — they can't *do* anything. This is the biggest capability gap.
 - `Agent.toolsMd` already exists but is ignored — parse it as JSON/YAML tool definitions
 - `LlmService.chat()`: pass `tools[]` to Anthropic/OpenAI, detect `tool_use` blocks in response
