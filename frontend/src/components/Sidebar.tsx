@@ -1,9 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Bot, LayoutDashboard, Settings, LogOut, Sparkles, Sun, Moon, X, User } from 'lucide-react';
-import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import LogoutModal from './LogoutModal';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -16,8 +14,6 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const { theme, toggle } = useTheme();
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-
   function handleLogout() {
     logout();
     navigate('/login');
@@ -81,20 +77,13 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         </button>
 
         <button
-          onClick={() => setShowLogoutModal(true)}
+          onClick={handleLogout}
           className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/[0.06] transition-colors duration-100"
         >
           <LogOut size={16} />
           Sign out
         </button>
       </div>
-
-      {showLogoutModal && (
-        <LogoutModal
-          onConfirm={handleLogout}
-          onCancel={() => setShowLogoutModal(false)}
-        />
-      )}
     </aside>
   );
 }
