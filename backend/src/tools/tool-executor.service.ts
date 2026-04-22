@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { AgentsService } from '../agents/agents.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
+import { GmailService } from '../gmail/gmail.service';
 
 export interface ToolExecutionContext {
   agentId: string;
@@ -18,6 +19,7 @@ export class ToolExecutorService {
     @Inject(forwardRef(() => AgentsService))
     private readonly agentsService: AgentsService,
     private readonly workspacesService: WorkspacesService,
+    private readonly gmailService: GmailService,
   ) {}
 
   async execute(
@@ -34,6 +36,8 @@ export class ToolExecutorService {
           return await this.readMemory(ctx);
         case 'write_memory':
           return await this.writeMemory(input, ctx);
+        case 'read_emails':
+          return await this.readEmails(input, ctx);
         default:
           return `Error: unknown tool "${toolName}"`;
       }
@@ -79,6 +83,12 @@ export class ToolExecutorService {
     if (!workspace) return 'Error: workspace not found';
     const content = await this.agentsService.getMemory(agent, workspace);
     return content || '(memory is empty)';
+  }
+
+  private async readEmails(input: Record<string, unknown>, ctx: ToolExecutionContext): Promise<string> {
+    const maxResults = typeof input.maxResults === 'number' ? input.maxResults : 10;
+    const query = typeof input.query === 'string' ? input.query : '';
+    return this.gmailService.listEmails(ctx.workspaceId, { maxResults, query });
   }
 
   private async writeMemory(input: Record<string, unknown>, ctx: ToolExecutionContext): Promise<string> {
