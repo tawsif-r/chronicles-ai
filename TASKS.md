@@ -6,7 +6,30 @@
 
 ## Current Status
 **Full stack + channels + scheduled agents functional.** Backend :3000 · Frontend :5173 · Postgres + Redis in Docker.
-Auth, agent CRUD, inline chat, live logs, API key management, all four channel modules, billing, Swagger, **scheduled agents**, and code-review-graph all working.
+Auth, agent CRUD, inline chat, live logs, API key management, all four channel modules, billing, Swagger, **scheduled agents**, tool use, and code-review-graph all working. Telegram bot fixed for multi-user support.
+
+---
+
+## Recently Completed (Session — April 22 2026)
+
+### ✅ Telegram Multi-User Fix
+- **Root cause:** `findChannelByTelegram(chatId)` matched sender's chatId against stored owner chatId — other users got no response
+- **Fix:** Lookup by `botToken` from URL param (`@Param('token')`) via new `findChannelByBotToken()` method
+- **Per-user history:** Added nullable `sessionId` column to `ChatMessage` entity; `sendMessage()` accepts optional `sessionId`; Telegram passes sender's chatId as sessionId → each user gets isolated conversation history
+- Controller: captures `:token` route param (was unused before), routes all incoming users to correct agent channel
+- Tests updated: `findChannelByTelegram` → `findChannelByBotToken`, assertions updated to match botToken lookup and sessionId in sendMessage call
+
+### ✅ Stale .js Compiled Artifacts Purged
+- All 30 stale compiled `.js` files in `frontend/src/` had `.tsx` counterparts shadowing them
+- Vite resolves `.js` before `.tsx` by default — every `.tsx` edit was silently ignored at runtime
+- Deleted all stale `.js` artifacts; Vite now correctly serves `.tsx` source files
+- Frontend restarted cleanly after purge
+
+### 🔲 Google OAuth (Sign in with Google) — Pending Client ID
+- Plan saved at `/home/tawsif/.claude/plans/when-i-made-a-lazy-graham.md`
+- Approach: ID token flow — frontend (`@react-oauth/google`) → backend (`google-auth-library`) → app JWT
+- Needs `GOOGLE_CLIENT_ID` from Google Cloud Console before implementation
+- See plan file for full step-by-step + Google setup instructions
 
 ---
 
