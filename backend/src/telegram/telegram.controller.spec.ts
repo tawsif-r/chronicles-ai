@@ -21,7 +21,7 @@ describe('TelegramController', () => {
         {
           provide: TelegramService,
           useValue: {
-            findChannelByTelegram: jest.fn(),
+            findChannelByBotToken: jest.fn(),
             handleIncomingMessage: jest.fn().mockResolvedValue(undefined),
           },
         },
@@ -47,13 +47,13 @@ describe('TelegramController', () => {
       .expect(201);
 
     expect(res.body).toEqual({ ok: true });
-    expect(telegramService.findChannelByTelegram).not.toHaveBeenCalled();
+    expect(telegramService.findChannelByBotToken).not.toHaveBeenCalled();
   });
 
   // ── no matching channel ────────────────────────────────────────────────────
 
   it('returns { ok: true } when no channel found for chat ID', async () => {
-    telegramService.findChannelByTelegram.mockResolvedValue(null);
+    telegramService.findChannelByBotToken.mockResolvedValue(null);
 
     const update = {
       update_id: 1,
@@ -72,7 +72,7 @@ describe('TelegramController', () => {
   // ── valid message ──────────────────────────────────────────────────────────
 
   it('routes message to handleIncomingMessage and returns { ok: true }', async () => {
-    telegramService.findChannelByTelegram.mockResolvedValue(mockChannel as any);
+    telegramService.findChannelByBotToken.mockResolvedValue(mockChannel as any);
 
     const update = {
       update_id: 1,
@@ -85,7 +85,7 @@ describe('TelegramController', () => {
       .expect(201);
 
     expect(res.body).toEqual({ ok: true });
-    expect(telegramService.findChannelByTelegram).toHaveBeenCalledWith('99999');
+    expect(telegramService.findChannelByBotToken).toHaveBeenCalledWith('my-bot-token');
     expect(telegramService.handleIncomingMessage).toHaveBeenCalledWith(
       mockChannel,
       '99999',

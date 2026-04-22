@@ -84,14 +84,14 @@ describe('TelegramService', () => {
     });
   });
 
-  // ── findChannelByTelegram ──────────────────────────────────────────────────
+  // ── findChannelByBotToken ──────────────────────────────────────────────────
 
-  describe('findChannelByTelegram()', () => {
-    it('queries by chatId with correct filters', async () => {
+  describe('findChannelByBotToken()', () => {
+    it('queries by botToken with correct filters', async () => {
       const channel = makeChannel();
       channelRepo._qb.getOne.mockResolvedValue(channel);
 
-      const result = await service.findChannelByTelegram('99999');
+      const result = await service.findChannelByBotToken('bot-token-123');
 
       expect(channelRepo.createQueryBuilder).toHaveBeenCalledWith('ch');
       expect(channelRepo._qb.where).toHaveBeenCalledWith(
@@ -99,15 +99,15 @@ describe('TelegramService', () => {
         { type: 'telegram' },
       );
       expect(channelRepo._qb.andWhere).toHaveBeenCalledWith(
-        "ch.config->>'chatId' = :chatId",
-        { chatId: '99999' },
+        "ch.config->>'botToken' = :token",
+        { token: 'bot-token-123' },
       );
       expect(result).toEqual(channel);
     });
 
     it('returns null when no channel found', async () => {
       channelRepo._qb.getOne.mockResolvedValue(null);
-      const result = await service.findChannelByTelegram('00000');
+      const result = await service.findChannelByBotToken('unknown-token');
       expect(result).toBeNull();
     });
   });
@@ -120,7 +120,7 @@ describe('TelegramService', () => {
 
       await service.handleIncomingMessage(channel, '99999', 'Hello!');
 
-      expect(chatService.sendMessage).toHaveBeenCalledWith('ag-1', 'ws-1', 'Hello!');
+      expect(chatService.sendMessage).toHaveBeenCalledWith('ag-1', 'ws-1', 'Hello!', '99999');
       expect(mockSendMessage).toHaveBeenCalledWith('99999', 'Agent reply');
     });
   });

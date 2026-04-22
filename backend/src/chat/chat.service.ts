@@ -32,6 +32,7 @@ export class ChatService {
     agentId: string,
     workspaceId: string,
     message: string,
+    sessionId?: string,
   ): Promise<string> {
     const agent = await this.agentsService.findOne(agentId, workspaceId);
 
@@ -43,7 +44,7 @@ export class ChatService {
       await log('info', `Message received (${message.length} chars)`);
 
       const history = await this.msgRepo.find({
-        where: { agent: { id: agentId } },
+        where: { agent: { id: agentId }, ...(sessionId ? { sessionId } : {}) },
         order: { createdAt: 'ASC' },
         take: 100,
       });
@@ -82,8 +83,8 @@ export class ChatService {
       await log('info', `Reply generated (${reply.length} chars)`);
 
       await this.msgRepo.save([
-        this.msgRepo.create({ agent, role: 'user', content: message }),
-        this.msgRepo.create({ agent, role: 'assistant', content: reply }),
+        this.msgRepo.create({ agent, role: 'user', content: message, sessionId: sessionId ?? null }),
+        this.msgRepo.create({ agent, role: 'assistant', content: reply, sessionId: sessionId ?? null }),
       ]);
 
       await this.billingService.incrementMessageCount(workspaceId);

@@ -2,11 +2,13 @@ import { User, LogOut, Copy, CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import LogoutModal from '../components/LogoutModal';
 
 export default function Profile() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [copiedField, setCopiedField] = useState<'id' | 'email' | null>(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const copyToClipboard = (text: string, field: 'id' | 'email') => {
     navigator.clipboard.writeText(text);
@@ -81,12 +83,19 @@ export default function Profile() {
         </div>
 
         <button
-          onClick={handleLogout}
+          onClick={() => setShowLogoutModal(true)}
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-lg transition-colors"
         >
           <LogOut size={14} /> Sign Out
         </button>
       </div>
+
+      {showLogoutModal && (
+        <LogoutModal
+          onConfirm={handleLogout}
+          onCancel={() => setShowLogoutModal(false)}
+        />
+      )}
     </div>
   );
 }

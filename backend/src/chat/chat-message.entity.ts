@@ -24,6 +24,9 @@ export class ChatMessage {
   @Column({ type: 'text' })
   content: string;
 
+  @Column({ nullable: true, type: 'text' })
+  sessionId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }

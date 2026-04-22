@@ -22,13 +22,13 @@ export class TelegramService {
     return this.bots.get(token)!;
   }
 
-  async findChannelByTelegram(chatId: string): Promise<AgentChannel | null> {
+  async findChannelByBotToken(token: string): Promise<AgentChannel | null> {
     return this.channelRepo
       .createQueryBuilder('ch')
       .leftJoinAndSelect('ch.agent', 'agent')
       .leftJoinAndSelect('agent.workspace', 'workspace')
       .where('ch.channelType = :type', { type: 'telegram' })
-      .andWhere("ch.config->>'chatId' = :chatId", { chatId })
+      .andWhere("ch.config->>'botToken' = :token", { token })
       .andWhere('ch.enabled = true')
       .getOne();
   }
@@ -47,6 +47,7 @@ export class TelegramService {
       agentChannel.agent.id,
       agentChannel.agent.workspace.id,
       text,
+      chatId,
     );
     const bot = this.getBot(agentChannel.config.botToken);
     await bot.sendMessage(chatId, reply);

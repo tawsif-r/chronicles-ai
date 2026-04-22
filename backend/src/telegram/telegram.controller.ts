@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Param, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/public.decorator';
 import { TelegramService } from './telegram.service';
@@ -20,6 +20,7 @@ export class TelegramController {
 
   @Post(':token')
   async handleWebhook(
+    @Param('token') token: string,
     @Body() update: TelegramUpdate,
   ): Promise<{ ok: boolean }> {
     if (!update.message?.text) {
@@ -27,7 +28,7 @@ export class TelegramController {
     }
 
     const chatId = String(update.message.chat.id);
-    const agentChannel = await this.telegramService.findChannelByTelegram(chatId);
+    const agentChannel = await this.telegramService.findChannelByBotToken(token);
     if (!agentChannel) {
       return { ok: true };
     }
