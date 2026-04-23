@@ -1,9 +1,35 @@
 import { useState } from 'react';
-import { Clock, Plus, Trash2, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
+import { Clock, Plus, Trash2, ToggleLeft, ToggleRight, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import cronstrue from 'cronstrue';
 import { useSchedules, useCreateSchedule, useUpdateSchedule, useDeleteSchedule } from '../hooks/useSchedules';
-import type { AgentSchedule } from '@chronicles/shared';
+import type { AgentSchedule, TelegramDispatch } from '@chronicles/shared';
 
 interface Props { agentId: string; }
+
+const DISPATCH_OPTIONS: { value: TelegramDispatch; label: string; description: string }[] = [
+  { value: 'owner',        label: 'Owner only',    description: 'Send to the chat ID configured on the channel' },
+  { value: 'broadcast',    label: 'Broadcast',     description: 'Send the same reply to everyone who has chatted with this bot' },
+  { value: 'personalized', label: 'Personalized',  description: 'Run the prompt in each user\'s conversation context — everyone gets a tailored reply' },
+  { value: 'none',         label: 'No Telegram',   description: 'Run the prompt and log the result, but don\'t send to Telegram' },
+];
+
+const PRESETS = [
+  { label: 'Every 30 min',    cron: '*/30 * * * *' },
+  { label: 'Every hour',      cron: '0 * * * *'    },
+  { label: 'Every 6 hours',   cron: '0 */6 * * *'  },
+  { label: 'Daily 9am',       cron: '0 9 * * *'    },
+  { label: 'Daily midnight',  cron: '0 0 * * *'    },
+  { label: 'Weekdays 9am',    cron: '0 9 * * 1-5'  },
+  { label: 'Mon 9am',         cron: '0 9 * * 1'    },
+];
+
+function describeCron(expr: string): { text: string; valid: boolean } {
+  try {
+    return { text: cronstrue.toString(expr, { verbose: false }), valid: true };
+  } catch {
+    return { text: 'Invalid expression', valid: false };
+  }
+}
 
 function formatLastRun(iso: string | null): string {
   if (!iso) return 'Never';
@@ -20,14 +46,18 @@ export default function ScheduleManager({ agentId }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [cron, setCron] = useState('');
   const [prompt, setPrompt] = useState('');
+  const [telegramDispatch, setTelegramDispatch] = useState<TelegramDispatch>('owner');
   const [formError, setFormError] = useState<string | null>(null);
+
+  const cronDesc = cron.trim() ? describeCron(cron.trim()) : null;
 
   async function handleCreate() {
     setFormError(null);
     if (!cron.trim() || !prompt.trim()) { setFormError('Both fields required'); return; }
+    if (cronDesc && !cronDesc.valid) { setFormError('Fix the cron expression first'); return; }
     try {
-      await create.mutateAsync({ cronExpression: cron.trim(), prompt: prompt.trim() });
-      setCron(''); setPrompt(''); setShowForm(false);
+      await create.mutateAsync({ cronExpression: cron.trim(), prompt: prompt.trim(), telegramDispatch });
+      setCron(''); setPrompt(''); setTelegramDispatch('owner'); setShowForm(false);
     } catch (err: any) {
       setFormError(err?.response?.data?.message ?? err?.message ?? 'Failed to create schedule');
     }
@@ -69,17 +99,72 @@ export default function ScheduleManager({ agentId }: Props) {
 
       {/* Create form */}
       {showForm && (
-        <div className="rounded-xl border border-gray-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 p-4 space-y-3">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-500 dark:text-zinc-500">Cron expression</label>
+        <div className="rounded-xl border border-gray-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900 p-4 space-y-4">
+
+          {/* Cron field */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-gray-500 dark:text-zinc-500">Schedule</label>
+
+            {/* Preset chips */}
+            <div className="flex flex-wrap gap-1.5">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.cron}
+                  type="button"
+                  onClick={() => setCron(p.cron)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
+                    cron === p.cron
+                      ? 'bg-violet-600/15 border-violet-500/40 text-violet-600 dark:text-violet-300'
+                      : 'bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-white/[0.06] text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-zinc-200 hover:border-gray-300 dark:hover:border-white/[0.15]'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Raw input */}
             <input
               value={cron}
               onChange={(e) => setCron(e.target.value)}
-              placeholder="0 9 * * *"
+              placeholder="or type a custom expression, e.g. 0 9 * * *"
               className="w-full text-sm bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-white/[0.06] rounded-lg px-3 py-2 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500 font-mono"
             />
-            <p className="text-xs text-gray-400 dark:text-zinc-600">min hour day month weekday — e.g. <code>0 9 * * *</code> = daily at 9am · <code>*/30 * * * *</code> = every 30 min</p>
+
+            {/* Live description */}
+            {cronDesc && (
+              <div className={`flex items-center gap-1.5 text-xs ${cronDesc.valid ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                {cronDesc.valid
+                  ? <CheckCircle2 size={12} />
+                  : <AlertCircle size={12} />}
+                {cronDesc.text}
+              </div>
+            )}
           </div>
+
+          {/* Telegram dispatch */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-gray-500 dark:text-zinc-500">Telegram dispatch</label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {DISPATCH_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setTelegramDispatch(opt.value)}
+                  className={`text-left px-3 py-2 rounded-lg border text-xs transition-all ${
+                    telegramDispatch === opt.value
+                      ? 'bg-violet-600/15 border-violet-500/40 text-violet-600 dark:text-violet-300'
+                      : 'bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-white/[0.06] text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-zinc-200 hover:border-gray-300 dark:hover:border-white/[0.15]'
+                  }`}
+                >
+                  <div className="font-medium">{opt.label}</div>
+                  <div className="mt-0.5 text-[10px] leading-tight opacity-70">{opt.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Prompt field */}
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-500 dark:text-zinc-500">Prompt</label>
             <textarea
@@ -90,6 +175,7 @@ export default function ScheduleManager({ agentId }: Props) {
               className="w-full text-sm bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-white/[0.06] rounded-lg px-3 py-2 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
             />
           </div>
+
           {formError && (
             <p className="text-xs text-red-500 dark:text-red-400">{formError}</p>
           )}
@@ -121,51 +207,60 @@ export default function ScheduleManager({ agentId }: Props) {
         </div>
       ) : (
         <div className="space-y-2">
-          {schedules.map((s) => (
-            <div
-              key={s.id}
-              className={`rounded-xl border p-4 flex items-start gap-3 transition-colors ${
-                s.enabled
-                  ? 'border-gray-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900'
-                  : 'border-gray-100 dark:border-white/[0.04] bg-gray-50 dark:bg-zinc-950 opacity-60'
-              }`}
-            >
-              <div className="flex-1 min-w-0 space-y-1">
-                <div className="flex items-center gap-2">
-                  <code className="text-xs font-mono text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 rounded">
-                    {s.cronExpression}
-                  </code>
-                  {!s.enabled && (
-                    <span className="text-xs text-gray-400 dark:text-zinc-600">paused</span>
-                  )}
+          {schedules.map((s) => {
+            const desc = describeCron(s.cronExpression);
+            return (
+              <div
+                key={s.id}
+                className={`rounded-xl border p-4 flex items-start gap-3 transition-colors ${
+                  s.enabled
+                    ? 'border-gray-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900'
+                    : 'border-gray-100 dark:border-white/[0.04] bg-gray-50 dark:bg-zinc-950 opacity-60'
+                }`}
+              >
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <code className="text-xs font-mono text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 rounded">
+                      {s.cronExpression}
+                    </code>
+                    {desc.valid && (
+                      <span className="text-xs text-gray-500 dark:text-zinc-500">{desc.text}</span>
+                    )}
+                    <span className="text-xs text-gray-400 dark:text-zinc-600 bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                      {DISPATCH_OPTIONS.find((d) => d.value === s.telegramDispatch)?.label ?? 'Owner only'}
+                    </span>
+                    {!s.enabled && (
+                      <span className="text-xs text-gray-400 dark:text-zinc-600">paused</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-800 dark:text-zinc-300 break-words">{s.prompt}</p>
+                  <p className="text-xs text-gray-400 dark:text-zinc-600">
+                    Last run: {formatLastRun(s.lastRunAt)}
+                  </p>
                 </div>
-                <p className="text-sm text-gray-800 dark:text-zinc-300 break-words">{s.prompt}</p>
-                <p className="text-xs text-gray-400 dark:text-zinc-600">
-                  Last run: {formatLastRun(s.lastRunAt)}
-                </p>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => handleToggle(s)}
+                    disabled={update.isPending}
+                    className="p-1.5 rounded-lg text-gray-400 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
+                    title={s.enabled ? 'Pause' : 'Resume'}
+                  >
+                    {s.enabled
+                      ? <ToggleRight size={16} className="text-violet-500" />
+                      : <ToggleLeft size={16} />}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(s)}
+                    disabled={remove.isPending}
+                    className="p-1.5 rounded-lg text-gray-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => handleToggle(s)}
-                  disabled={update.isPending}
-                  className="p-1.5 rounded-lg text-gray-400 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
-                  title={s.enabled ? 'Pause' : 'Resume'}
-                >
-                  {s.enabled
-                    ? <ToggleRight size={16} className="text-violet-500" />
-                    : <ToggleLeft size={16} />}
-                </button>
-                <button
-                  onClick={() => handleDelete(s)}
-                  disabled={remove.isPending}
-                  className="p-1.5 rounded-lg text-gray-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

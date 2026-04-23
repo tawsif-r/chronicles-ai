@@ -27,6 +27,7 @@ describe('SchedulesService', () => {
     cronExpression: '0 9 * * *',
     prompt: 'Daily summary',
     enabled: true,
+    telegramDispatch: 'owner',
     lastRunAt: null,
     createdAt: new Date(),
     agent: { id: agentId } as any,

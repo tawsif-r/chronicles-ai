@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Key, Trash2, Plus, ShieldCheck } from 'lucide-react';
+import { Key, Trash2, Plus, ShieldCheck, Mail, CheckCircle2, XCircle, ChevronDown, ChevronRight, ClipboardCopy } from 'lucide-react';
 import { apiClient } from '../api/client';
 import type { ApiKey } from '@chronicles/shared';
 
@@ -10,14 +10,61 @@ const providerInfo: Record<string, { label: string; hint: string }> = {
   openrouter: { label: 'OpenRouter', hint: 'sk-or-v1-...' },
 };
 
+type GmailStatus = { connected: boolean; email?: string };
+
+const TOOL_JSON = JSON.stringify([{
+  name: 'read_emails',
+  description: 'Read recent emails from the connected Gmail account',
+  input_schema: {
+    type: 'object',
+    properties: {
+      maxResults: { type: 'number', description: 'Max emails to return (default 10, max 25)' },
+      query: { type: 'string', description: "Gmail search query e.g. 'is:unread', 'from:boss@company.com'" },
+    },
+  },
+}], null, 2);
+
 export default function Settings() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [provider, setProvider] = useState('anthropic');
   const [keyValue, setKeyValue] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [gmailStatus, setGmailStatus] = useState<GmailStatus>({ connected: false });
+  const [gmailLoading, setGmailLoading] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => { apiClient.get<ApiKey[]>('/api-keys').then((r) => setKeys(r.data)); }, []);
+
+  useEffect(() => {
+    apiClient.get<GmailStatus>('/gmail/status').then((r) => setGmailStatus(r.data)).catch(() => {});
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('gmail') === 'connected') {
+      apiClient.get<GmailStatus>('/gmail/status').then((r) => setGmailStatus(r.data)).catch(() => {});
+      window.history.replaceState({}, '', '/settings');
+    }
+  }, []);
+
+  async function handleConnectGmail() {
+    setGmailLoading(true);
+    const r = await apiClient.get<{ url: string }>('/gmail/auth');
+    window.location.href = r.data.url;
+  }
+
+  async function handleDisconnectGmail() {
+    setGmailLoading(true);
+    try {
+      await apiClient.delete('/gmail/disconnect');
+      setGmailStatus({ connected: false });
+    } finally { setGmailLoading(false); }
+  }
+
+  function copyToolJson() {
+    navigator.clipboard.writeText(TOOL_JSON);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   async function handleStore(e: React.FormEvent) {
     e.preventDefault(); setError(''); setSaving(true);
@@ -39,6 +86,103 @@ export default function Settings() {
     <div className="p-6 lg:p-8 max-w-2xl mx-auto">
       <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight mb-1">Settings</h1>
       <p className="text-sm text-gray-500 dark:text-zinc-500 mb-8">Manage your API keys and workspace configuration.</p>
+
+      <section className="mb-10">
+        <div className="flex items-center gap-2 mb-4">
+          <Mail size={15} className="text-gray-400 dark:text-zinc-500" />
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider">Gmail Integration</h2>
+        </div>
+        <p className="text-xs text-gray-400 dark:text-zinc-600 mb-4 leading-relaxed">
+          Connect Gmail so your agents can read and summarize emails using the <code className="font-mono text-violet-400">read_emails</code> tool.
+        </p>
+        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/[0.08] rounded-xl p-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {gmailStatus.connected ? (
+              <CheckCircle2 size={18} className="text-green-500" />
+            ) : (
+              <XCircle size={18} className="text-gray-400 dark:text-zinc-600" />
+            )}
+            <div>
+              <p className="text-sm font-medium text-gray-900 dark:text-zinc-200">
+                {gmailStatus.connected ? 'Connected' : 'Not connected'}
+              </p>
+              {gmailStatus.email && (
+                <p className="text-xs text-gray-400 dark:text-zinc-500 font-mono">{gmailStatus.email}</p>
+              )}
+            </div>
+          </div>
+          {gmailStatus.connected ? (
+            <button
+              onClick={handleDisconnectGmail}
+              disabled={gmailLoading}
+              className="px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200 dark:border-red-500/20 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-all disabled:opacity-50"
+            >
+              Disconnect
+            </button>
+          ) : (
+            <button
+              onClick={handleConnectGmail}
+              disabled={gmailLoading}
+              className="px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-500 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {gmailLoading && <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+              Connect Gmail
+            </button>
+          )}
+        </div>
+
+        <button
+          onClick={() => setShowSetup((v) => !v)}
+          className="mt-3 flex items-center gap-1.5 text-xs text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 transition-colors"
+        >
+          {showSetup ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+          {showSetup ? 'Hide' : 'Show'} setup instructions
+        </button>
+
+        {showSetup && (
+          <div className="mt-3 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-white/[0.06] rounded-xl p-5 space-y-5 text-xs text-gray-600 dark:text-zinc-400">
+            <div>
+              <p className="font-semibold text-gray-700 dark:text-zinc-300 mb-2">Before clicking "Connect Gmail" you need a Google Cloud project:</p>
+              <ol className="space-y-1.5 list-decimal list-inside leading-relaxed">
+                <li>Go to <span className="font-mono text-violet-400">console.cloud.google.com</span> → create a new project</li>
+                <li>Search for <strong className="text-gray-700 dark:text-zinc-300">Gmail API</strong> → Enable it</li>
+                <li>Go to <strong className="text-gray-700 dark:text-zinc-300">OAuth consent screen</strong> → External → fill in app name → add scope <span className="font-mono text-violet-400">.../auth/gmail.readonly</span></li>
+                <li>Go to <strong className="text-gray-700 dark:text-zinc-300">Credentials</strong> → Create → OAuth 2.0 Client ID → Web application</li>
+                <li>Add authorised redirect URI: <span className="font-mono text-violet-400">http://localhost:3000/api/gmail/callback</span></li>
+                <li>Copy the <strong className="text-gray-700 dark:text-zinc-300">Client ID</strong> and <strong className="text-gray-700 dark:text-zinc-300">Client Secret</strong></li>
+              </ol>
+            </div>
+
+            <div>
+              <p className="font-semibold text-gray-700 dark:text-zinc-300 mb-2">Add to <span className="font-mono">backend/.env</span>:</p>
+              <pre className="bg-zinc-900 dark:bg-black text-zinc-300 rounded-lg p-3 text-[11px] leading-relaxed overflow-x-auto">{`GOOGLE_CLIENT_ID=your-client-id-here
+GOOGLE_CLIENT_SECRET=your-secret-here
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/gmail/callback`}</pre>
+            </div>
+
+            <div>
+              <p className="font-semibold text-gray-700 dark:text-zinc-300 mb-1">Restart the backend, then click "Connect Gmail" above.</p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-semibold text-gray-700 dark:text-zinc-300">Add this to your agent's <span className="font-mono">Tools (JSON)</span> field:</p>
+                <button
+                  onClick={copyToolJson}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-gray-500 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-300 border border-gray-200 dark:border-white/[0.08] hover:border-gray-300 dark:hover:border-white/[0.15] transition-all"
+                >
+                  <ClipboardCopy size={11} />
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <pre className="bg-zinc-900 dark:bg-black text-violet-300 rounded-lg p-3 text-[11px] leading-relaxed overflow-x-auto">{TOOL_JSON}</pre>
+              <p className="mt-2 text-gray-400 dark:text-zinc-600 leading-relaxed">
+                Tip: add this to your agent's system prompt to get essential/non-essential grouping: <em className="text-zinc-500">"When asked about emails, use read_emails, then group results into Essential (action required, deadlines) and Non-essential (newsletters, FYIs)."</em>
+              </p>
+            </div>
+          </div>
+        )}
+      </section>
 
       <section>
         <div className="flex items-center gap-2 mb-4">

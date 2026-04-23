@@ -20,6 +20,7 @@ import { DiscordModule } from './discord/discord.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { BillingModule } from './billing/billing.module';
 import { SchedulesModule } from './schedules/schedules.module';
+import { GmailModule } from './gmail/gmail.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 // Entities
@@ -36,6 +37,7 @@ import { Plan } from './billing/plan.entity';
 import { Subscription } from './billing/subscription.entity';
 import { Payment } from './billing/payment.entity';
 import { AgentSchedule } from './schedules/schedule.entity';
+import { GmailIntegration } from './gmail/gmail-integration.entity';
 
 const ALL_ENTITIES = [
   User,
@@ -51,6 +53,7 @@ const ALL_ENTITIES = [
   Subscription,
   Payment,
   AgentSchedule,
+  GmailIntegration,
 ];
 
 @Module({
@@ -91,6 +94,7 @@ const ALL_ENTITIES = [
     WhatsappModule,
     BillingModule,
     SchedulesModule,
+    GmailModule,
   ],
   providers: [
     // Apply JwtAuthGuard globally; routes opt out with @Public()

@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString, IsNotEmpty } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, IsNotEmpty } from 'class-validator';
 
 export class UpdateScheduleDto {
   @IsOptional()
@@ -14,4 +14,8 @@ export class UpdateScheduleDto {
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;
+
+  @IsOptional()
+  @IsIn(['owner', 'broadcast', 'personalized', 'none'])
+  telegramDispatch?: string;
 }
