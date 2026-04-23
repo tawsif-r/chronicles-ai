@@ -43,10 +43,11 @@
 | Scheduled agents | `backend/src/schedules/`, `frontend/src/components/ScheduleManager.tsx` | Done — Bull repeatable jobs, cron scheduling, channel dispatch (Slack/Telegram/Discord), billing-metered, 6 tests |
 | Agent sub-page navigation | `frontend/src/pages/AgentChat.tsx`, `AgentLogs.tsx`, `AgentMemory.tsx` | Done — tab bar on all agent sub-pages (Overview / Chat / Logs / Memory) |
 | Chat history pagination fix | `frontend/src/hooks/useChat.ts` | Done — limit 200 (was 50, caused new messages to disappear) |
+| Document Vault + RAG | `backend/src/documents/`, `frontend/src/pages/DocumentsPage.tsx` | Done — upload PDF/DOCX/TXT, pgvector embeddings, `search_documents` agentic tool (April 23 2026) |
 
-**Current state (April 20 2026):** Full stack + channels + billing + Swagger + scheduled agents fully functional. Agent logs wired into chat and runtime lifecycle. Scheduled agents use Bull repeatable jobs (Redis-backed, survive restarts), fire on cron, call LLM via ChatService (billing-metered), post result to all enabled channels (Slack/Telegram/Discord) + chat history + live logs. Frontend has sub-page tab nav on all agent pages. Unit test suite: 86+ tests, 100% passing.
+**Current state (April 23 2026):** Full stack + channels + billing + Swagger + scheduled agents + Document Vault (RAG) fully functional. Document upload (PDF/DOCX/TXT) → async chunking → OpenAI embeddings → pgvector storage → `search_documents` tool available to all Claude agents in agentic loop. pgvector extension via `pgvector/pgvector:pg16-alpine` image. Frontend: `/documents` page with drag-and-drop upload, status polling, document list. API key for embeddings comes from workspace `OPENAI_API_KEY` — no new env vars.
 
-**Tooling:** code-review-graph dependency analysis integrated — 555-node call graph queryable via SQLite for cross-module task planning.
+**Tooling:** code-review-graph dependency analysis integrated — 709-node call graph (325 functions, 169 tests, 134 files, 81 classes), 4608 edges, queryable via SQLite for cross-module task planning.
 
 ### Code Exploration via code-review-graph
 
@@ -316,9 +317,11 @@ NestJS Backend (:3000)
     |-- DiscordModule       Discord persistent client + DM routing
     |-- WhatsappModule      WhatsApp Twilio webhook handler
     |
-    |-- PostgreSQL (TypeORM)    agent config, chat history, api keys
-    |-- Redis                   response caching
-    |-- Bull Queue              async jobs (future: scheduled actions)
+    |-- DocumentsModule      Document Vault + RAG (upload, chunk, embed, pgvector search)
+    |
+    |-- PostgreSQL+pgvector (TypeORM)   agent config, chat history, api keys, document chunks + embeddings
+    |-- Redis                   billing counters, Bull queue backing
+    |-- Bull Queue              scheduled agent runs, document embedding jobs
     |
     v
 LLM APIs

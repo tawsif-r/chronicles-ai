@@ -33,10 +33,12 @@ chroniclesAi/
 │   ├── billing/
 │   ├── chat/
 │   ├── discord/
+│   ├── documents/      ← Document Vault + RAG (upload, chunk, embed, pgvector search)
 │   ├── llm/
 │   ├── logs/
 │   ├── runtime/
 │   ├── schedules/
+│   ├── shared/         ← VectorColumn TypeORM decorator
 │   ├── skills/
 │   ├── tools/
 │   ├── slack/
@@ -45,6 +47,7 @@ chroniclesAi/
 │   ├── whatsapp/
 │   ├── workspaces/
 │   └── app.module.ts   ← root module, registers everything
+├── backend/db/init/    ← SQL init scripts (001_pgvector.sql)
 ├── frontend/src/        ← React + Vite SPA
 │   ├── api/
 │   ├── components/
@@ -274,6 +277,29 @@ Discord uses a persistent bot connection (not webhooks). The bot must be running
 
 ---
 
+### `documents` — Document Vault + RAG
+**Path:** `backend/src/documents/`
+
+Upload documents (PDF/DOCX/TXT), chunk + embed via OpenAI, store in pgvector. Claude agents can search uploaded docs via the `search_documents` built-in tool.
+
+| File | Role |
+|---|---|
+| `documents.service.ts` | `upload()`, `processDocument()` (parse→chunk→embed→save), `search()` (pgvector cosine), `onModuleInit()` (ALTER column + HNSW index) |
+| `embedding.service.ts` | OpenAI `text-embedding-3-small`, batch 100, retry with backoff; key from `ApiKeysService.buildEnvForAgent` |
+| `document.processor.ts` | Bull processor for `document-embedding` queue |
+| `documents.controller.ts` | `POST /api/documents/upload` (202), `GET /api/documents`, `GET /api/documents/:id`, `DELETE /api/documents/:id`, `POST /api/documents/search` |
+| `document.entity.ts` | id, workspaceId FK, filename, mimeType, sizeBytes, status, diskPath, chunkCount |
+| `document-chunk.entity.ts` | text + `vector(1536)` column (stored as text, ALTERed on init) |
+
+**Key notes:**
+- pgvector: `pgvector/pgvector:pg16-alpine` image; `backend/db/init/001_pgvector.sql` creates extension
+- `backend/src/shared/vector-column.ts` — custom TypeORM decorator for vector columns
+- Disk path: `{WORKSPACE_BASE_PATH}/documents/{workspaceId}/{docId}/{filename}`
+- Embeddings key pulled from workspace `OPENAI_API_KEY` — no `.env` change needed
+- pdf-parse v2 API: `new PDFParse({ data: buffer })` then `.getText()`
+
+---
+
 ### `tools` — Tool Use / Agentic Loop
 **Path:** `backend/src/tools/`
 
@@ -291,6 +317,7 @@ Enables Claude agents to call built-in tools during a conversation. When an agen
 | `http_request` | GET/POST any public URL; blocks private IPs; 10s timeout; truncates at 4000 chars |
 | `read_memory` | Reads the agent's `MEMORY.md` from disk |
 | `write_memory` | Overwrites the agent's `MEMORY.md` on disk |
+| `search_documents` | pgvector cosine similarity search across workspace documents; params: `query` (required), `limit`, `documentIds` |
 
 **How to add tools to an agent:** Set `toolsMd` to a JSON array of tool definitions (Anthropic tool schema format). Empty or invalid JSON = tools disabled, falls back to normal chat.
 
@@ -329,7 +356,11 @@ chat ──────────────► agents (load agent config)
   └──────────────► tools (execute tool calls in agentic loop)
 
 tools ─────────────► agents (read/write MEMORY.md)
-  └──────────────► workspaces (resolve disk path)
+  ├──────────────► workspaces (resolve disk path)
+  └──────────────► documents (search_documents tool)
+
+documents ─────────► api-keys (OPENAI_API_KEY for embeddings)
+  └──────────────► workspaces (scope + disk path)
 
 schedules ─────────► chat (fire sendMessage on cron)
   └──────────────► slack / telegram / discord (dispatch reply)
@@ -361,6 +392,7 @@ billing ───────────► workspaces (scope limits per worksp
 | `AgentMemory.tsx` | `/agents/:id/memory` | Read/write agent memory blob |
 | `Settings.tsx` | `/settings` | Manage LLM API keys |
 | `Profile.tsx` | `/profile` | User profile |
+| `DocumentsPage.tsx` | `/documents` | Upload docs, view list + status, tool JSON snippet |
 
 ### Key Hooks
 
@@ -376,6 +408,7 @@ billing ───────────► workspaces (scope limits per worksp
 |---|---|---|
 | `ChannelManager` | `components/ChannelManager.tsx` | Add/edit/delete channel connections per agent |
 | `AgentCard` | `components/AgentCard.tsx` | Dashboard card with status badge + delete |
+| `DocumentUpload` | `components/DocumentUpload.tsx` | Drag-and-drop dropzone with progress bar |
 | `Layout` / `Sidebar` | `components/` | App shell with nav |
 
 ### API Client

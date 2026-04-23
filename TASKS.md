@@ -5,10 +5,25 @@
 ---
 
 ## Current Status
-**Full stack + channels + scheduled agents functional.** Backend :3000 · Frontend :5173 · Postgres + Redis in Docker.
-Auth, agent CRUD, inline chat, live logs, API key management, all four channel modules, billing, Swagger, **scheduled agents**, tool use, and code-review-graph all working. Telegram bot fixed for multi-user support.
+**Full stack + channels + scheduled agents + Document Vault (RAG) functional.** Backend :3000 · Frontend :5173 · Postgres + Redis in Docker.
+Auth, agent CRUD, inline chat, live logs, API key management, all four channel modules, billing, Swagger, **scheduled agents**, tool use, **document upload + pgvector RAG**, and code-review-graph all working. Telegram bot fixed for multi-user support.
 
 ---
+
+## Recently Completed (Session — April 23 2026)
+
+### ✅ Document Vault + RAG (search_documents tool)
+- New `DocumentsModule`: upload PDF/DOCX/TXT, chunk, embed via OpenAI `text-embedding-3-small`, store in pgvector
+- `Document` entity (metadata) + `DocumentChunk` entity (text + vector(1536) column)
+- Bull queue (`document-embedding`) for async processing; `DocumentProcessor` handles jobs
+- `DocumentsService`: `upload()`, `processDocument()` (parse→chunk→embed→save), `search()` (cosine similarity via pgvector), `parseFile()` (pdf-parse v2, mammoth, plain text), `chunkText()` (2000-char, 200 overlap)
+- `EmbeddingService`: OpenAI `text-embedding-3-small`, batches of 100, retry with exponential backoff
+- Custom `VectorColumn` TypeORM decorator; `onModuleInit` ALTERs column to `vector(1536)`, creates HNSW index
+- pgvector: swapped `postgres:16-alpine` → `pgvector/pgvector:pg16-alpine` in docker-compose; init script `backend/db/init/001_pgvector.sql`
+- `search_documents` tool wired into `ToolExecutorService` (agentic loop) — agents can now search uploaded docs
+- REST endpoints: `POST /api/documents/upload` (202), `GET /api/documents`, `GET /api/documents/:id`, `DELETE /api/documents/:id`, `POST /api/documents/search`
+- Frontend: `DocumentsPage` (upload + list + status polling + tool JSON snippet), `DocumentUpload` (drag-and-drop + progress bar), `useDocuments` / `useUploadDocument` / `useDeleteDocument` hooks, `/documents` route, sidebar nav item
+- API key for embeddings: pulled from workspace `OPENAI_API_KEY` via `ApiKeysService` — no `.env` change needed
 
 ## Recently Completed (Session — April 22 2026)
 
@@ -254,14 +269,8 @@ Auth, agent CRUD, inline chat, live logs, API key management, all four channel m
 - Update `ModelProvider` shared type: add `'groq' | 'gemini' | 'mistral'`
 - Files: `llm.service.ts`, `shared/src/index.ts`, `AgentNew.tsx` model selector
 
-### 🔲 RAG — Knowledge Base per Agent
-**Why:** Agents can only use conversation history as context. RAG lets agents answer from uploaded documents.
-- New `KnowledgeBase` entity: agentId, source (file/url), chunks, embeddings
-- On document upload: chunk + embed using `text-embedding-3-small` or Ollama embed
-- Store vectors in `pgvector` extension (already using Postgres)
-- At chat time: embed user query, top-K similarity search, inject chunks before history
-- Frontend: `AgentDetail.tsx` → Knowledge tab, file upload, URL crawl
-- Files: new `rag/` module, `chat.service.ts`
+### ✅ RAG — Document Vault + search_documents tool
+Done April 23 2026. See "Recently Completed (Session — April 23 2026)" above.
 
 ### 🔲 Channel Features + Polish
 - Channel enable/disable toggle (UI + backend logic)
