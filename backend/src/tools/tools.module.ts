@@ -3,9 +3,10 @@ import { ToolExecutorService } from './tool-executor.service';
 import { AgentsModule } from '../agents/agents.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { GmailModule } from '../gmail/gmail.module';
+import { DocumentsModule } from '../documents/documents.module';
 
 @Module({
-  imports: [forwardRef(() => AgentsModule), WorkspacesModule, GmailModule],
+  imports: [forwardRef(() => AgentsModule), WorkspacesModule, GmailModule, DocumentsModule],
   providers: [ToolExecutorService],
   exports: [ToolExecutorService],
 })

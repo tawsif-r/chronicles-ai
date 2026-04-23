@@ -1,11 +1,12 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bot, LayoutDashboard, Settings, LogOut, Sparkles, Sun, Moon, X, User } from 'lucide-react';
+import { Bot, LayoutDashboard, Settings, LogOut, Sparkles, Sun, Moon, X, User, FileText } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/agents/new', icon: Bot, label: 'New Agent' },
+  { to: '/documents', icon: FileText, label: 'Documents' },
   { to: '/settings', icon: Settings, label: 'Settings' },
   { to: '/profile', icon: User, label: 'Profile' },
 ];

@@ -21,6 +21,7 @@ import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { BillingModule } from './billing/billing.module';
 import { SchedulesModule } from './schedules/schedules.module';
 import { GmailModule } from './gmail/gmail.module';
+import { DocumentsModule } from './documents/documents.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 // Entities
@@ -38,6 +39,8 @@ import { Subscription } from './billing/subscription.entity';
 import { Payment } from './billing/payment.entity';
 import { AgentSchedule } from './schedules/schedule.entity';
 import { GmailIntegration } from './gmail/gmail-integration.entity';
+import { Document } from './documents/document.entity';
+import { DocumentChunk } from './documents/document-chunk.entity';
 
 const ALL_ENTITIES = [
   User,
@@ -54,6 +57,8 @@ const ALL_ENTITIES = [
   Payment,
   AgentSchedule,
   GmailIntegration,
+  Document,
+  DocumentChunk,
 ];
 
 @Module({
@@ -95,6 +100,7 @@ const ALL_ENTITIES = [
     BillingModule,
     SchedulesModule,
     GmailModule,
+    DocumentsModule,
   ],
   providers: [
     // Apply JwtAuthGuard globally; routes opt out with @Public()

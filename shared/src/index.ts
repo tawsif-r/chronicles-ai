@@ -167,6 +167,32 @@ export interface AgentStatusResponse {
   gatewayPort: number | null;
 }
 
+// ─── Documents ────────────────────────────────────────────────────────────────
+
+export type DocumentStatus = 'pending' | 'processing' | 'ready' | 'error';
+
+export interface Document {
+  id: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  status: DocumentStatus;
+  errorMessage: string | null;
+  title: string | null;
+  chunkCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SearchResult {
+  documentId: string;
+  filename: string;
+  title: string | null;
+  chunkIndex: number;
+  content: string;
+  similarity: number;
+}
+
 export interface MemoryResponse {
   content: string;
 }
