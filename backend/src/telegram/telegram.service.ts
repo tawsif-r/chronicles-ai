@@ -33,6 +33,17 @@ export class TelegramService {
       .getOne();
   }
 
+  async recordKnownChat(channel: AgentChannel, chatId: string): Promise<void> {
+    const raw = channel.config.knownChatIds;
+    const known: string[] = raw ? JSON.parse(raw) : [];
+    if (!known.includes(chatId)) {
+      known.push(chatId);
+      await this.channelRepo.update(channel.id, {
+        config: { ...channel.config, knownChatIds: JSON.stringify(known) },
+      });
+    }
+  }
+
   async sendOutbound(botToken: string, chatId: string, text: string): Promise<void> {
     const bot = this.getBot(botToken);
     await bot.sendMessage(chatId, text);

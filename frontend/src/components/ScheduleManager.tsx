@@ -2,9 +2,16 @@ import { useState } from 'react';
 import { Clock, Plus, Trash2, ToggleLeft, ToggleRight, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import cronstrue from 'cronstrue';
 import { useSchedules, useCreateSchedule, useUpdateSchedule, useDeleteSchedule } from '../hooks/useSchedules';
-import type { AgentSchedule } from '@chronicles/shared';
+import type { AgentSchedule, TelegramDispatch } from '@chronicles/shared';
 
 interface Props { agentId: string; }
+
+const DISPATCH_OPTIONS: { value: TelegramDispatch; label: string; description: string }[] = [
+  { value: 'owner',        label: 'Owner only',    description: 'Send to the chat ID configured on the channel' },
+  { value: 'broadcast',    label: 'Broadcast',     description: 'Send the same reply to everyone who has chatted with this bot' },
+  { value: 'personalized', label: 'Personalized',  description: 'Run the prompt in each user\'s conversation context — everyone gets a tailored reply' },
+  { value: 'none',         label: 'No Telegram',   description: 'Run the prompt and log the result, but don\'t send to Telegram' },
+];
 
 const PRESETS = [
   { label: 'Every 30 min',    cron: '*/30 * * * *' },
@@ -39,6 +46,7 @@ export default function ScheduleManager({ agentId }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [cron, setCron] = useState('');
   const [prompt, setPrompt] = useState('');
+  const [telegramDispatch, setTelegramDispatch] = useState<TelegramDispatch>('owner');
   const [formError, setFormError] = useState<string | null>(null);
 
   const cronDesc = cron.trim() ? describeCron(cron.trim()) : null;
@@ -48,8 +56,8 @@ export default function ScheduleManager({ agentId }: Props) {
     if (!cron.trim() || !prompt.trim()) { setFormError('Both fields required'); return; }
     if (cronDesc && !cronDesc.valid) { setFormError('Fix the cron expression first'); return; }
     try {
-      await create.mutateAsync({ cronExpression: cron.trim(), prompt: prompt.trim() });
-      setCron(''); setPrompt(''); setShowForm(false);
+      await create.mutateAsync({ cronExpression: cron.trim(), prompt: prompt.trim(), telegramDispatch });
+      setCron(''); setPrompt(''); setTelegramDispatch('owner'); setShowForm(false);
     } catch (err: any) {
       setFormError(err?.response?.data?.message ?? err?.message ?? 'Failed to create schedule');
     }
@@ -134,6 +142,28 @@ export default function ScheduleManager({ agentId }: Props) {
             )}
           </div>
 
+          {/* Telegram dispatch */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-gray-500 dark:text-zinc-500">Telegram dispatch</label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {DISPATCH_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setTelegramDispatch(opt.value)}
+                  className={`text-left px-3 py-2 rounded-lg border text-xs transition-all ${
+                    telegramDispatch === opt.value
+                      ? 'bg-violet-600/15 border-violet-500/40 text-violet-600 dark:text-violet-300'
+                      : 'bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-white/[0.06] text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-zinc-200 hover:border-gray-300 dark:hover:border-white/[0.15]'
+                  }`}
+                >
+                  <div className="font-medium">{opt.label}</div>
+                  <div className="mt-0.5 text-[10px] leading-tight opacity-70">{opt.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Prompt field */}
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-500 dark:text-zinc-500">Prompt</label>
@@ -196,6 +226,9 @@ export default function ScheduleManager({ agentId }: Props) {
                     {desc.valid && (
                       <span className="text-xs text-gray-500 dark:text-zinc-500">{desc.text}</span>
                     )}
+                    <span className="text-xs text-gray-400 dark:text-zinc-600 bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                      {DISPATCH_OPTIONS.find((d) => d.value === s.telegramDispatch)?.label ?? 'Owner only'}
+                    </span>
                     {!s.enabled && (
                       <span className="text-xs text-gray-400 dark:text-zinc-600">paused</span>
                     )}

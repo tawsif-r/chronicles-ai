@@ -24,6 +24,9 @@ export class AgentSchedule {
   @Column({ default: true })
   enabled: boolean;
 
+  @Column({ default: 'owner' })
+  telegramDispatch: string;
+
   @Column({ type: 'timestamp', nullable: true })
   lastRunAt: Date | null;
 

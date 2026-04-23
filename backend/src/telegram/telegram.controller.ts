@@ -33,6 +33,7 @@ export class TelegramController {
       return { ok: true };
     }
 
+    await this.telegramService.recordKnownChat(agentChannel, chatId);
     await this.telegramService.handleIncomingMessage(
       agentChannel,
       chatId,

@@ -15,6 +15,7 @@ export interface ScheduleJobPayload {
   agentId: string;
   workspaceId: string;
   prompt: string;
+  telegramDispatch: string;
 }
 
 @Injectable()
@@ -56,6 +57,7 @@ export class SchedulesService implements OnModuleInit {
         agent: { id: agentId },
         cronExpression: dto.cronExpression,
         prompt: dto.prompt,
+        telegramDispatch: dto.telegramDispatch ?? 'owner',
         enabled: true,
         lastRunAt: null,
       }),
@@ -89,6 +91,7 @@ export class SchedulesService implements OnModuleInit {
       agentId: schedule.agentId,
       workspaceId: schedule.workspaceId,
       prompt: schedule.prompt,
+      telegramDispatch: schedule.telegramDispatch ?? 'owner',
     };
     await this.queue.add(SCHEDULE_JOB, payload, {
       repeat: { cron: schedule.cronExpression },

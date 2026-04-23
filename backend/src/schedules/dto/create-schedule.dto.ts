@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, Matches } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsIn, Matches } from 'class-validator';
 
 export class CreateScheduleDto {
   @IsString()
@@ -9,4 +9,8 @@ export class CreateScheduleDto {
   @IsString()
   @IsNotEmpty()
   prompt: string;
+
+  @IsOptional()
+  @IsIn(['owner', 'broadcast', 'personalized', 'none'])
+  telegramDispatch?: string;
 }
