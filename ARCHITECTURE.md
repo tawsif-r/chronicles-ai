@@ -384,7 +384,7 @@ billing ───────────► workspaces (scope limits per worksp
 |---|---|---|
 | `Login.tsx` | `/login` | JWT login form |
 | `Register.tsx` | `/register` | New user registration |
-| `Dashboard.tsx` | `/` | Lists all agents, create/delete |
+| `Dashboard.tsx` | `/` | Lists all agents, create/delete; shows dismissable welcome banner with 3-step onboarding on first visit |
 | `AgentNew.tsx` | `/agents/new` | Create agent form |
 | `AgentDetail.tsx` | `/agents/:id` | Tab bar: Overview / Schedules / Channels |
 | `AgentChat.tsx` | `/agents/:id/chat` | Chat UI with message history |
@@ -414,6 +414,10 @@ billing ───────────► workspaces (scope limits per worksp
 ### API Client
 
 `frontend/src/api/client.ts` — Axios instance. Attaches `Authorization: Bearer <token>` to every request. Token stored in `AuthContext`.
+
+### Dev Tunnel / Demo Mode
+
+`frontend/vite.config.ts` has `allowedHosts: true` — allows any host header, enabling Cloudflare Tunnel or ngrok to proxy the Vite dev server without rejection. All `/api` and `/socket.io` traffic routes through Vite's proxy to the backend, so clients see same-origin requests and no CORS issues arise. Set `PUBLIC_URL` in `backend/.env` if OAuth callbacks (Gmail) are needed during a demo.
 
 ---
 
@@ -474,6 +478,7 @@ TelegramService.handleIncomingMessage()
 | `DATABASE_URL` | typeorm | PostgreSQL connection |
 | `REDIS_URL` | bull / billing | Redis connection |
 | `WEBHOOK_BASE_URL` | agents | Public URL for auto-registering Telegram webhooks |
+| `PUBLIC_URL` | main.ts CORS | Tunnel/demo URL (e.g. `https://xxx.trycloudflare.com`) — adds to CORS allowed origins |
 
 All secrets live in `backend/.env`. Copy from `backend/.env.example` to get started.
 
