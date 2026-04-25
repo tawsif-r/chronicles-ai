@@ -32,7 +32,9 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.FRONTEND_URL
       ? process.env.FRONTEND_URL.split(',')
-      : ['http://localhost:5173', 'http://192.168.3.35:5173'],
+      : process.env.PUBLIC_URL
+        ? [process.env.PUBLIC_URL, 'http://localhost:5173']
+        : ['http://localhost:5173', 'http://192.168.3.35:5173'],
     credentials: true,
   });
 
