@@ -214,6 +214,18 @@
 
 ---
 
+## ADR-018: Landing Page — Public Route at `/`, Component-Per-Section
+
+**Decision:** Public marketing landing page lives at `/` as a single scrollable page with 7 section components in `frontend/src/components/landing/`. The `*` catch-all route redirects to `/` instead of `/dashboard`. Login/Register pages have the logo icon wrapped in `<Link to="/">`.
+
+**Rationale:** No external CMS, no separate domain. Same React app serves both landing and app. Pricing cards fetch live from the already-public `GET /api/billing/plans` endpoint so plan prices are always accurate. Splitting into per-section components keeps the main `Landing.tsx` file small and each section independently editable.
+
+**Trade-off:** Landing and app share the same bundle. Fine for current scale — if SEO or performance becomes a concern, split into a separate Vite app or add SSR.
+
+**Implementation:** `frontend/src/pages/Landing.tsx` imports `LandingNav`, `Hero`, `Features`, `HowItWorks`, `Pricing`, `FAQ`, `LandingFooter` from `components/landing/`. Route added in `App.tsx:29`.
+
+---
+
 ## ADR-017: Channel Architecture (Telegram, Slack, WhatsApp, Discord)
 
 **Decision:** Channels are implemented as NestJS modules that listen to webhooks. Each channel module:

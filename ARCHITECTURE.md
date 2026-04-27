@@ -382,9 +382,10 @@ billing ───────────► workspaces (scope limits per worksp
 
 | Page | Path | What it does |
 |---|---|---|
-| `Login.tsx` | `/login` | JWT login form |
-| `Register.tsx` | `/register` | New user registration |
-| `Dashboard.tsx` | `/` | Lists all agents, create/delete; shows dismissable welcome banner with 3-step onboarding on first visit |
+| `Landing.tsx` | `/` | Public marketing page — Hero, Features, HowItWorks, Pricing (live), FAQ, Footer |
+| `Login.tsx` | `/login` | JWT login form; logo links back to `/` |
+| `Register.tsx` | `/register` | New user registration; logo links back to `/` |
+| `Dashboard.tsx` | `/dashboard` | Lists all agents, create/delete; shows dismissable welcome banner with 3-step onboarding on first visit |
 | `AgentNew.tsx` | `/agents/new` | Create agent form |
 | `AgentDetail.tsx` | `/agents/:id` | Tab bar: Overview / Schedules / Channels |
 | `AgentChat.tsx` | `/agents/:id/chat` | Chat UI with message history |
@@ -410,6 +411,7 @@ billing ───────────► workspaces (scope limits per worksp
 | `AgentCard` | `components/AgentCard.tsx` | Dashboard card with status badge + delete |
 | `DocumentUpload` | `components/DocumentUpload.tsx` | Drag-and-drop dropzone with progress bar |
 | `Layout` / `Sidebar` | `components/` | App shell with nav |
+| `landing/*` | `components/landing/` | 7 section components for the public landing page (LandingNav, Hero, Features, HowItWorks, Pricing, FAQ, LandingFooter) |
 
 ### API Client
 

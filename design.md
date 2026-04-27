@@ -44,8 +44,9 @@
 | Agent sub-page navigation | `frontend/src/pages/AgentChat.tsx`, `AgentLogs.tsx`, `AgentMemory.tsx` | Done — tab bar on all agent sub-pages (Overview / Chat / Logs / Memory) |
 | Chat history pagination fix | `frontend/src/hooks/useChat.ts` | Done — limit 200 (was 50, caused new messages to disappear) |
 | Document Vault + RAG | `backend/src/documents/`, `frontend/src/pages/DocumentsPage.tsx` | Done — upload PDF/DOCX/TXT, pgvector embeddings, `search_documents` agentic tool (April 23 2026) |
+| Landing Page | `frontend/src/pages/Landing.tsx`, `frontend/src/components/landing/` | Done — public marketing page at `/`: Hero, Features, HowItWorks, Pricing (live from `/api/billing/plans`), FAQ accordion, Footer (April 27 2026) |
 
-**Current state (April 23 2026):** Full stack + channels + billing + Swagger + scheduled agents + Document Vault (RAG) fully functional. Document upload (PDF/DOCX/TXT) → async chunking → OpenAI embeddings → pgvector storage → `search_documents` tool available to all Claude agents in agentic loop. pgvector extension via `pgvector/pgvector:pg16-alpine` image. Frontend: `/documents` page with drag-and-drop upload, status polling, document list. API key for embeddings comes from workspace `OPENAI_API_KEY` — no new env vars.
+**Current state (April 27 2026):** Full stack + channels + billing + Swagger + scheduled agents + Document Vault (RAG) + Landing page fully functional. Public landing page at `/` with pricing cards loaded live from backend. Login/Register pages link back to landing via logo. Document upload (PDF/DOCX/TXT) → async chunking → OpenAI embeddings → pgvector storage → `search_documents` tool available to all Claude agents in agentic loop. pgvector extension via `pgvector/pgvector:pg16-alpine` image. Frontend: `/documents` page with drag-and-drop upload, status polling, document list. API key for embeddings comes from workspace `OPENAI_API_KEY` — no new env vars.
 
 **Tooling:** code-review-graph dependency analysis integrated — 709-node call graph (325 functions, 169 tests, 134 files, 81 classes), 4608 edges, queryable via SQLite for cross-module task planning.
 
@@ -473,7 +474,15 @@ frontend/src/
 │   ├── Layout.tsx          Sidebar + <main> wrapper
 │   ├── Sidebar.tsx         Sparkles logo, NavLink items, logout — violet active state
 │   ├── AgentCard.tsx       hover glow, Chat/Logs/Start-Stop actions
-│   └── StatusBadge.tsx     colored dot: emerald/amber(pulse)/zinc/red per status
+│   ├── StatusBadge.tsx     colored dot: emerald/amber(pulse)/zinc/red per status
+│   └── landing/            Landing page section components (public, no auth)
+│       ├── LandingNav.tsx  Sticky navbar with anchor scroll + Sign in / Get started buttons
+│       ├── Hero.tsx        Headline, subtext, two CTAs, violet blob bg
+│       ├── Features.tsx    6-feature 2×3 grid
+│       ├── HowItWorks.tsx  3-step visual (01/02/03)
+│       ├── Pricing.tsx     FREE/PRO/MAX cards, fetched live from GET /api/billing/plans
+│       ├── FAQ.tsx         Accordion, 6 static items
+│       └── LandingFooter.tsx  Logo + nav links + copyright
 │
 └── contexts/
     └── AuthContext.tsx     JWT in localStorage, currentUser, logout
@@ -484,8 +493,9 @@ frontend/src/
 **Pages by route:**
 
 ```
-/login
-/register
+/                      → Landing (public, marketing page)
+/login                 → Login (logo links back to /)
+/register              → Register (logo links back to /)
 /dashboard
 /agents
 /agents/new
