@@ -27,9 +27,9 @@ export default function Register() {
 
       <div className="relative w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-violet-600 shadow-lg shadow-violet-900/30 mb-4">
+          <Link to="/" className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-violet-600 shadow-lg shadow-violet-900/30 mb-4 hover:bg-violet-500 transition-colors">
             <Sparkles size={18} className="text-white" />
-          </div>
+          </Link>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Create account</h1>
           <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">Get started with ChroniclesAI</p>
         </div>
