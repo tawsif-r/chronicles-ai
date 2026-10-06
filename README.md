@@ -48,9 +48,6 @@ Web platform for creating, managing, and chatting with AI agents. Build custom a
    docker compose up postgres redis -d
    ```
 
-
-- This line was added as a test, i will merget this into the main branch, then i will roll it back to a previous commit.
-
 4. Run backend + frontend:
    ```bash
    pnpm dev:backend  # http://localhost:3000/api
